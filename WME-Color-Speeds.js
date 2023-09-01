@@ -15,7 +15,6 @@
 // @copyright        Sebiseba, seb-d59 & DummyD2 - 2015-2019
 // ==/UserScript==
 
-// test
 var WMECSpeeds = {};
 var CSpeeds_Version = "1.3.2";
 var debug=false;
