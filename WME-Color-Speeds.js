@@ -435,7 +435,7 @@ function CSpeeds_init(){
         window.setTimeout(CSpeeds_init, 500);
         return;
     }
-    if(typeof(getTopCountry().name) == 'undefined'){
+    if(typeof(getTopCountry().attributes.name) == 'undefined'){
         if (debug) { console.error("WME ColorSpeeds - CSpeedsCountries.top.name DOM : NOK"); }
         window.setTimeout(CSpeeds_init, 500);
         return;
@@ -476,7 +476,7 @@ function CSpeeds_init(){
         if (WMECSpeeds.version === undefined) {CSpeeds_OldVersion = 0;
         }else if (WMECSpeeds.version !== undefined) { CSpeeds_OldVersion = WMECSpeeds.version;}
         
-        WMECSpeeds.MultiplePalette = (getTopCountry().name == "United States")? WMECSpeeds.MultiplePalette : false;
+        WMECSpeeds.MultiplePalette = (getTopCountry().attributes.name == "United States")? WMECSpeeds.MultiplePalette : false;
 //        WMECSpeeds.MultiplePalette = (CSpeedsCountries.top.name == "United States")? WMECSpeeds.MultiplePalette : false;
  
  
@@ -868,7 +868,7 @@ function CSpeeds_Mainhtml() {
     getId('cbPaletteByCountrie').checked=WMECSpeeds.PaletteByCountrie;
     getId('selectCountrie').style.display = (WMECSpeeds.PaletteByCountrie)? "block" : "none";
     
-    getId('stateChoise').style.display = (/*CSpeedsCountries.top*/getTopCountry().name == "United States")? "block" : "none";
+    getId('stateChoise').style.display = (/*CSpeedsCountries.top*/getTopCountry().attributes.name == "United States")? "block" : "none";
     
     if (WMECSpeeds.MultiplePalette==true){
       var stateToSelect = /*CSpeedsModel.states.top*/getTopState().name.replace(/ /g, '_');
@@ -994,7 +994,7 @@ function LoadSettings(){
   
     if (getId('selectCountrie').options[getId('selectCountrie').selectedIndex] !== undefined)
       selectedCountrie = getId('selectCountrie').options[getId('selectCountrie').selectedIndex].value;
-    else selectedCountrie = /*CSpeedsModel.countries.top*/getTopCountry().name.replace(/ /g, '_');
+    else selectedCountrie = /*CSpeedsModel.countries.top*/getTopCountry().attributes.name.replace(/ /g, '_');
     
     log("selectCountrie = ", selectedCountrie);
     
@@ -1316,13 +1316,13 @@ function updateCountrieList(){
   var selectCountrie = getId('selectCountrie');
   var current = null;
   if (selectCountrie.selectedIndex >= 0) current = selectCountrie.options[selectCountrie.selectedIndex].value;
-  if (current === null) current = /*CSpeedsModel.countries.top*/getTopCountry().name.replace(/ /g, '_');
+  if (current === null) current = /*CSpeedsModel.countries.top*/getTopCountry().attributes.name.replace(/ /g, '_');
  
   selectCountrie.options.length = 0;
   
   for (var countrie in WMECSpeeds.speedColors.Countries) {
    // create option in select menu
-    if (countrie === undefined) countrie=/*CSpeedsModel.countries.top*/getTopCountry().name.replace(/ /g, '_');
+    if (countrie === undefined) countrie=/*CSpeedsModel.countries.top*/getTopCountry().attributes.name.replace(/ /g, '_');
     var countrieOption = document.createElement('option');
     var countrieText = document.createTextNode(countrie.replace(/_/g, ' '));
     
@@ -1472,7 +1472,7 @@ function SCColor(){
     if (/*CSpeedsCountries.top*/getTopCountry() === null) return;
     
     if ( CSpeedsCountries !== undefined && /*CSpeedsCountries.top*/getTopCountry() !== undefined){
-      getId('stateChoise').style.display = (/*CSpeedsCountries.top*/getTopCountry().name == "United States")? "block" : "none";
+      getId('stateChoise').style.display = (/*CSpeedsCountries.top*/getTopCountry().attributes.name == "United States")? "block" : "none";
     }
     var lineFeature = [];
     
@@ -1504,7 +1504,7 @@ function SCColor(){
           continue;
         }
         
-        var cid = getByID(CSpeedsModel.streets, attributes.primaryStreetID).cityID;
+        var cid = getByID(CSpeedsModel.streets, attributes.primaryStreetID).attributes.cityID;
         var stateID =null;
         var countryID =null;
         
@@ -1516,8 +1516,8 @@ function SCColor(){
         stateID = getByID(CSpeedsModel.cities, cid).attributes.stateID;
         countryID = getByID(CSpeedsModel.cities, cid).attributes.countryID;
  
-        var state = getByID(CSpeedsModel.states,stateID).name.replace(/ /g, '_');
-        var countrie = getByID(CSpeedsModel.countries,countryID).name.replace(/ /g, '_');
+        var state = getByID(CSpeedsModel.states,stateID).attributes.name.replace(/ /g, '_');
+        var countrie = getByID(CSpeedsModel.countries,countryID).attributes.name.replace(/ /g, '_');
         
         if (WMECSpeeds.PaletteByCountrie==true && WMECSpeeds.speedColors.Countries[countrie]===undefined){
             WMECSpeeds.speedColors.Countries[countrie] = {};
