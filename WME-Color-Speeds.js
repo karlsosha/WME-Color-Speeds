@@ -1115,7 +1115,7 @@ function setupHandler(){
     actualiseColorRGB(rgb);
   });
 
-    getId('cancel').onclick=(function(){
+  getId('cancel').onclick=(function(){
     getId('Conf_Others').style.display="none";
     getId('Conf_Color').style.display = "none";
     getId('CSpeeds_cfgdialog').style.display= 'none';
