@@ -12,7 +12,7 @@
 // @exclude          https://www.waze.com/*/user*
 // @namespace        https://greasyfork.org/scripts/14044-wme-color-speeds
 // @author           Originally Created by French Script Team, Maintained by WazeDev
-// @copyright        Sebiseba, seb-d59 & DummyD2 - 2015-2019, Sethspeedy28, pj_aitken
+// @copyright        Sebiseba, seb-d59 & DummyD2 - 2015-2019
 // ==/UserScript==
 
 var WMECSpeeds = {};
