@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          1.3.3
+// @version          1.3.4
 // @description      Adds colours to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -11,12 +11,12 @@
 // @exclude          https://www.waze.com/user*
 // @exclude          https://www.waze.com/*/user*
 // @namespace        https://greasyfork.org/scripts/14044-wme-color-speeds
-// @author           Originally Created by French Script Team, Maintained by WazeDev
+// @author           Created by French Script Team, Maintained by WazeDev
 // @copyright        Sebiseba, seb-d59 & DummyD2 - 2015-2019
 // ==/UserScript==
 
 var WMECSpeeds = {};
-var CSpeeds_Version = "1.3.3";
+var CSpeeds_Version = "1.3.4";
 var debug=false;
 var CSpeeds_OldVersion = CSpeeds_Version;
 
@@ -46,22 +46,22 @@ var colorspeeds_mapLayer=[];
 var toggler, groupToggler;
 
 var zoom=0;
-var RoadToScan = [3,6,7,4,2,1,22,8,20,17,999];
+var RoadToScan = [3,6,7,4,2,1,22,20,17,8,999];
 //var RoadUpToStreet = [2,3,6,7];
 //var highway = [3,6,7];
 
 var typeOfRoad = {
 //---Type Road-----------
-   3: {"name":"Freeways","checked":true,"zoom":0},
-   6: {"name":"Major Highway","checked":true,"zoom":1},
-   7: {"name":"Minor Highway","checked":true,"zoom":2},
-   4: {"name":"Ramps","checked":true,"zoom":2},
-   2: {"name":"Primary Street","checked":false,"zoom":3},
-   1: {"name":"Streets","checked":false,"zoom":4},
-  22: {"name":"Narrow Streets","checked":false,"zoom":4},
-   8: {"name":"Dirt roads","checked":false,"zoom":4},
-  20: {"name":"Parking Lot Road","checked":false,"zoom":4},
-  17: {"name":"Private Road","checked":false,"zoom":4},
+   3: {"name":"Freeways","checked":true,"zoom":14},
+   6: {"name":"Major Highway","checked":true,"zoom":14},
+   7: {"name":"Minor Highway","checked":true,"zoom":14},
+   4: {"name":"Ramps","checked":true,"zoom":15},
+   2: {"name":"Primary Street","checked":false,"zoom":15},
+   1: {"name":"Streets","checked":false,"zoom":16},
+  22: {"name":"Narrow Streets","checked":false,"zoom":16},
+  20: {"name":"Parking Lot Road","checked":false,"zoom":16},
+  17: {"name":"Private Road","checked":false,"zoom":16},
+   8: {"name":"Off Road","checked":false,"zoom":16},
  999: {"name":"Roundabout","checked":false,"zoom":false}
    };
 
@@ -113,10 +113,20 @@ var CSlang = {
         15: {"fr" : "Decalage", "en" : "Offset"},
         16: {"fr" : "Opacite", "en" : "Opacity"},
         17: {"fr" : "Epaisseur", "en" : "Thickness"},
-        18: {"fr" : "Rond-Point",  "en" : "Roundabound"},
+        18: {"fr" : "Rond-Point",  "en" : "Roundabout"},
         19: {"fr" : "Une palette par pays",  "en" : "One palette by  country"},
         20: {"fr" : "Une palette par état (USA uniquement)",  "en" : "One Palette by State (US only)"},
-        21: {"fr" : "pour",  "en" : "for"}
+        21: {"fr" : "pour",  "en" : "for"},
+	22: {"fr" : "Autoroute", "en" : "Freeway"},
+        23: {"fr" : "Route majeure", "en" : "Major Highway"},
+        24: {"fr" : "Route mineure", "en" : "Minor Highway"},
+        25: {"fr" : "Bretelle", "en" : "Ramps"},
+        26: {"fr" : "Rue principale", "en" : "Primary Street"},
+        27: {"fr" : "Rue", "en" : "Street"},
+        28: {"fr" : "Rue étroite", "en" : "Narrow Street"},
+        29: {"fr" : "Voie de parking", "en" : "Parking Lot Road"},
+        30: {"fr" : "Voie privée", "en" : "Private Road"},
+        31: {"fr" : "Chemin de terre", "en" : "Off Road"}
     };
 
 WMECSpeeds.visibility = true;
@@ -355,7 +365,7 @@ function CSTestVersion() {
         CSpeeds_Maj +="Compatibilité pour new WME\n";
     }else {
         CSpeeds_Maj +="\nWhat's new:\n";
-        CSpeeds_Maj +="Compatibility for new WME\n";
+        CSpeeds_Maj +="Updated Presets for new WME zoom levels\nAdded FR language support for road types\nUpdated terminology and fixed typos\n";
     }
     alert(CSpeeds_Maj);
     WMECSpeeds.version = CSpeeds_Version;
@@ -1015,23 +1025,79 @@ function LoadSettings(){
     divcheck.innerHTML= '<input type="checkbox" style="margin:1px 1px;" class="CScheck" id="cbRoad'+type+'">';
     div.appendChild(divcheck);
 
-    if (type != 999){
-      var divtype = document.createElement('div'); divtype.className="divl CStype"; divtype.style.width="130px"; divtype.innerHTML= WMECSpeeds.typeOfRoad[type].name;
-      div.appendChild(divtype);
+      var divtype = document.createElement('div');
+      divtype.className = "divl CStype";
+      divtype.style.width = "130px";
 
-      var divedit = document.createElement('div'); divedit.className="divr"; divedit.style.width="20px";
+      var divedit = document.createElement('div');
+      divedit.className = "divr";
+      divedit.style.width = "20px";
       var divedita = document.createElement('a');
-      divedita.innerHTML="<img style='width:16px;' title='"+ CSlang[8][CSI18n] +"' src='data:image/png;base64,"+ icon_edit +"' />";
-      divedita.href = "#"; divedita.className="modifyZoom"; divedita.id="zoom_"+type;
+      divedita.innerHTML = "<img style='width:16px;' title='" + CSlang[8][CSI18n] + "' src='data:image/png;base64," + icon_edit + "' />";
+      divedita.href = "#";
+      divedita.className = "modifyZoom";
+      divedita.id = "zoom_" + type;
       divedit.appendChild(divedita);
-      div.appendChild(divedit);
 
-      var divzoom = document.createElement('div'); divzoom.className="divr CSzoom"; divzoom.style.width="60px"; divzoom.innerHTML= WMECSpeeds.typeOfRoad[type].zoom;
-      div.appendChild(divzoom);
-    }else if (type == 999){
-      var divtype = document.createElement('div'); divtype.className="divl CStype"; divtype.style.width="130px"; divtype.innerHTML= CSlang[18][CSI18n];
-      div.appendChild(divtype);
-    }
+      var divzoom = document.createElement('div');
+      divzoom.className = "divr CSzoom";
+      divzoom.style.width = "60px";
+      divzoom.innerHTML = WMECSpeeds.typeOfRoad[type].zoom;
+
+      if (type == 3) {
+          divtype.innerHTML = CSlang[22][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 6) {
+          divtype.innerHTML = CSlang[23][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 7) {
+          divtype.innerHTML = CSlang[24][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 4) {
+          divtype.innerHTML = CSlang[25][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 2) {
+          divtype.innerHTML = CSlang[26][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 1) {
+          divtype.innerHTML = CSlang[27][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 22) {
+          divtype.innerHTML = CSlang[28][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 20) {
+          divtype.innerHTML = CSlang[29][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 17) {
+          divtype.innerHTML = CSlang[30][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 8) {
+          divtype.innerHTML = CSlang[31][CSI18n];
+          div.appendChild(divtype);
+          div.appendChild(divedit);
+          div.appendChild(divzoom);
+      } else if (type == 999) {
+          divtype.innerHTML = CSlang[18][CSI18n];
+          div.appendChild(divtype);
+      }
 
     getId('CSroadType').appendChild(div);
     getId('cbRoad'+type).checked = WMECSpeeds.typeOfRoad[type].checked;
