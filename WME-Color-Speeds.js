@@ -362,7 +362,7 @@ function CSTestVersion() {
     var CSpeeds_Maj = GM_info.script.name + " v" + CSpeeds_Version + "\n";
     if (CSpeedI18n  == "fr"){
         CSpeeds_Maj +="\nQuoi de neuf:\n";
-        CSpeeds_Maj +="Compatibilité pour new WME\n";
+        CSpeeds_Maj +="Mise à jour des presets pour les nouveaux niveaux de zoom de l'éditeur\nTraduction française des types de segment\nMise à jour de la terminologie, correction de fautes d'orthographe\n";
     }else {
         CSpeeds_Maj +="\nWhat's new:\n";
         CSpeeds_Maj +="Updated Presets for new WME zoom levels\nAdded FR language support for road types\nUpdated terminology and fixed typos\n";
