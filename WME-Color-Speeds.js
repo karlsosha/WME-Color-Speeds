@@ -14,6 +14,7 @@
 // @grant            GM_xmlhttpRequest
 // @connect          greasyfork.org
 // @namespace        https://greasyfork.org/scripts/14044-wme-color-speeds
+// @require          https://greasyfork.org/scripts/24851-wazewrap/code/WazeWrap.js
 // @author           Created by French Script Team, Maintained by WazeDev
 // @copyright        Sebiseba, seb-d59 & DummyD2 - 2015-2019
 // ==/UserScript==
