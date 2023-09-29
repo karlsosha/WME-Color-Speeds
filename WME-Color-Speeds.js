@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2023.09.27.02
+// @version          2023.09.29.01
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -34,9 +34,9 @@
 const scriptName = GM_info.script.name;
 // eslint-disable-next-line camelcase
 const currentVersion = GM_info.script.version;
-const changelogFrench = "MIS À JOUR : Intégration de l'API sidebar de WME. Ça y est, on se tourne enfin vers l'avenir !<br><br>MIS À JOUR : Désormais on utilise la date de mise à jour pour le numéro de version. Ah mais... Ça veut dire que je ne peux plus cacher mon âge ! rougit<br><br>CORRIGÉ : Le script ne crashe plus lorsque \"Une palette par état\" est coché et que vous actualisez la page.<br><br>";
-const changelogEnglish = 'UPDATED: Integrated WME sidebar API. Because we\'re not fans of that "left-behind OS" vibe either.<br><br>UPDATED: Version # format is...now in dates! Oh my, that means I can\'t hide my age. blush<br><br>FIXED: Bug that would crash the script when the One Palette by State box was checked before a hard refresh.<br><br>';
-// eslint-disable-next-line camelcase
+const const changelogFrench = "MIS À JOUR : Améliorations diverses de l'interface. Ça fait du bien de prendre soin de soi de temps en temps. Y'a pas à dire, je suis chic maintenant !<br><br>AMÉLIORÉ : Les éléments surlignés sont désormais actualisés automatiquement lorsque vous changez d'unités ou de type de route. Plus besoin de zoomer ou de déplacer la carte :)<br><br>";
+const changelogEnglish = 'UPDATED: Various UI improvements. A little self-care goes a long way. Now aren\'t we looking spiffy?<br><br>ENHANCEMENT: Map highlights now refresh automatically after a change in units or a Road Type checkbox. No zooming or panning required.<br><br>';
+int-disable-next-line camelcase
 const greasyForkUrl = GM_info.script.namespace;
 const downloadUrl = 'https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js';
 const forumUrl = 'https://www.waze.com/forum/viewtopic.php?t=167387';
