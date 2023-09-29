@@ -36,7 +36,7 @@ const scriptName = GM_info.script.name;
 const currentVersion = GM_info.script.version;
 const changelogFrench = "MIS À JOUR : Améliorations diverses de l'interface. Ça fait du bien de prendre soin de soi de temps en temps. Y'a pas à dire, je suis chic maintenant !<br><br>AMÉLIORÉ : Les éléments surlignés sont désormais actualisés automatiquement lorsque vous changez d'unités ou de type de route. Plus besoin de zoomer ou de déplacer la carte :)<br><br>";
 const changelogEnglish = 'UPDATED: Various UI improvements. A little self-care goes a long way. Now aren\'t we looking spiffy?<br><br>ENHANCEMENT: Map highlights now refresh automatically after a change in units or a Road Type checkbox. No zooming or panning required.<br><br>';
-int-disable-next-line camelcase
+// eslint-disable-next-line camelcase
 const greasyForkUrl = GM_info.script.namespace;
 const downloadUrl = 'https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js';
 const forumUrl = 'https://www.waze.com/forum/viewtopic.php?t=167387';
