@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2023.09.27.01
+// @version          2023.09.29.01
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -23,8 +23,6 @@
 /* global WazeWrap */
 /* global GM_info */
 /* global CSpeedsWaze */
-/* global CSpeedsModel */
-/* global CSpeedsMap */
 /* global I18n */
 /* global $ */
 
@@ -36,13 +34,13 @@
 const scriptName = GM_info.script.name;
 // eslint-disable-next-line camelcase
 const currentVersion = GM_info.script.version;
-const changelogFrench = "MIS À JOUR : Intégration de l'API sidebar de WME. Ça y est, on se tourne enfin vers l'avenir !<br><br>MIS À JOUR : Désormais on utilise la date de mise à jour pour le numéro de version. Ah mais... Ça veut dire que je ne peux plus cacher mon âge ! rougit<br><br>CORRIGÉ : Le script ne crashe plus lorsque \"Une palette par état\" est coché et que vous actualisez la page.<br><br>";
-const changelogEnglish = 'UPDATED: Integrated WME sidebar API. Because we\'re not fans of that "left-behind OS" vibe either.<br><br>UPDATED: Version # format is...now in dates! Oh my, that means I can\'t hide my age. blush<br><br>FIXED: Bug that would crash the script when the One Palette by State box was checked before a hard refresh.<br><br>';
-// eslint-disable-next-line camelcase
+const const changelogFrench = "MIS À JOUR : Améliorations diverses de l'interface. Ça fait du bien de prendre soin de soi de temps en temps. Y'a pas à dire, je suis chic maintenant !<br><br>AMÉLIORÉ : Les éléments surlignés sont désormais actualisés automatiquement lorsque vous changez d'unités ou de type de route. Plus besoin de zoomer ou de déplacer la carte :)<br><br>";
+const changelogEnglish = 'UPDATED: Various UI improvements. A little self-care goes a long way. Now aren\'t we looking spiffy?<br><br>ENHANCEMENT: Map highlights now refresh automatically after a change in units or a Road Type checkbox. No zooming or panning required.<br><br>';
+int-disable-next-line camelcase
 const greasyForkUrl = GM_info.script.namespace;
 const downloadUrl = 'https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js';
 const forumUrl = 'https://www.waze.com/forum/viewtopic.php?t=167387';
-let oldScriptVersion = currentVersion;
+// let oldScriptVersion;
 const debug = false;
 let WMECSpeeds = {};
 
@@ -192,7 +190,7 @@ WMECSpeeds.typeOfRoad = typeOfRoad;
 //  21: "Service Road"
 
 // WMECSpeeds.selectedRoadType = [];
-
+/*
 const dashStyles = [
     'Solid',
     'ShortDash',
@@ -206,7 +204,7 @@ const dashStyles = [
     'LongDashDot',
     'LongDashDotDot'
 ];
-
+*/
 let CSI18n = 'en';
 
 const CSlang = {
@@ -267,15 +265,7 @@ function log(msg, obj) {
 function getId(node) {
     return document.getElementById(node);
 }
-/*
-function getElementsByClassName(classname, node) {
-    node || (node = document.getElementsByTagName('body')[0]);
-    for (var a = [], re = new RegExp(`\\b${classname}\\b`), els = node.getElementsByTagName('*'), i = 0, j = els.length; i < j; i++) {
-        re.test(els[i].className) && a.push(els[i]);
-    }
-    return a;
-}
-*/
+
 function getElementsByClassName(classname, node) {
     node = node || document.body;
     return Array.from(node.querySelectorAll(`.${classname}`));
@@ -460,6 +450,7 @@ function roundDecimals(c) {
 }
 
 function checkUnit() {
+    // eslint-disable-next-line no-undef
     if (CSpeedsModel.isImperial) {
         unit = 'mph';
     } else {
@@ -542,16 +533,22 @@ function changelogLocalizer() {
 }
 
 function getTopCountry() {
+    // eslint-disable-next-line no-undef
     return CSpeedsModel.getTopCountry();
 }
 
 function getTopState() {
+    // eslint-disable-next-line no-undef
     return CSpeedsModel.getTopState();
 }
 
 function saveOption() {
     WMECSpeeds.togglerChecked = getId('layer-switcher-item_WME_Color_Speeds').checked;
     localStorage.setItem('WMEColorSpeeds', JSON.stringify(WMECSpeeds));
+}
+function destroyTab() {
+    W.userscripts.removeSidebarTab('ColorSpeeds');
+    if (debug) log('Sidebar tab removed');
 }
 
 // *************
@@ -566,8 +563,8 @@ function bootstrap() {
         if (debug) log('WME and WW not ready');
         setTimeout(bootstrap, 500);
     }
-    /* begin running the code! */
 }
+
 function showScriptInfoAlert() {
     WazeWrap.Interface.ShowScriptUpdate(
         // eslint-disable-next-line camelcase
@@ -661,19 +658,19 @@ function init() {
         if (WMECSpeeds.offsetValue === undefined) WMECSpeeds.offsetValue = offsetValue;
         if (WMECSpeeds.opacityValue === undefined) WMECSpeeds.opacityValue = opacityValue;
         if (WMECSpeeds.thicknessValue === undefined) WMECSpeeds.thicknessValue = thicknessValue;
-        for (let key in typeOfRoad) {
+        for (const key in typeOfRoad) {
             if (WMECSpeeds.typeOfRoad.hasOwnProperty(key) === false ) {
                 WMECSpeeds.typeOfRoad[key] = cloneObj(typeOfRoad[key]);
             }
         }
         if (WMECSpeeds.togglerChecked === undefined) WMECSpeeds.togglerChecked = WMECSpeeds.visibility;
-
+        /* this if statement is no longer needed with WW
         if (WMECSpeeds.version === undefined) {
             oldScriptVersion = 0;
         } else if (WMECSpeeds.version !== undefined) {
             oldScriptVersion = WMECSpeeds.version;
         }
-
+        */
         WMECSpeeds.MultiplePalette = (getTopCountry().attributes.name === 'United States') ? WMECSpeeds.MultiplePalette : false;
         //        WMECSpeeds.MultiplePalette = (CSpeedsCountries.top.name == "United States")? WMECSpeeds.MultiplePalette : false;
 
@@ -740,6 +737,7 @@ function init() {
     */
     // reload after changing WME units
     W.prefs.on('change:isImperial', () => {
+        destroyTab();
         eventUnRegister();
         checkUnit();
         createToggler();
@@ -807,21 +805,21 @@ function createNewSpeedColorDialog() {
     // newspeedColorDialog.style.fontSize = '90%';
     newspeedColorDialog.style.display = 'none';
     newspeedColorDialog.style.top = '10px';
-    newspeedColorDialog.style.left = '-30px';
-    newspeedColorDialog.style.width = '290px';
-    newspeedColorDialog.style.height = '700px';
-    newspeedColorDialog.style.marginLeft = '20px';
+    // newspeedColorDialog.style.left = '15px';
+    newspeedColorDialog.style.width = '300px';
+    newspeedColorDialog.style.height = '500px';
+    newspeedColorDialog.style.margin = '10px 10px 10px 0px';
     newspeedColorDialog.style.borderRadius = '10px';
     newspeedColorDialog.style.border = '1px solid #BEDCE5';
     newspeedColorDialog.style.position = 'relative';
-    // newspeedColorDialog.style.padding= '.2em';
+    newspeedColorDialog.style.padding = '5px';
     newspeedColorDialog.style.overflow = 'auto';
     newspeedColorDialog.style.background = 'rgba(255, 255, 255, 1)';
 
-    let content = "<div style='clear:both; padding-top:10px;'></div>";
-    // content += `<div class='divc' style='width:400px; font-weight:bold;'> WME Color Speeds - ${CSlang[2][CSI18n]}:</div>`;
+    let content = "<div style='clear:both;'></div>";
     content += `<div class='divc' style='width:200px; font-weight:bold;'>${CSlang[2][CSI18n]}:</div>`;
     content += "<div style='clear:both; padding-top:10px;'></div>";
+
     // header table
     content += "<div class='CScontentConf'>";
 
@@ -843,7 +841,7 @@ function createNewSpeedColorDialog() {
     content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[3][CSI18n]}:</div>`;
     content += '</div>';
 
-    content += `<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfColor' class='btn dropdown-toggle' style='background-color:${WMECSpeeds.speedColors.Others};' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: scroll; margin: 0; padding: 0; min-width: 90px;'>`;
+    content += `<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfColor' class='btn dropdown-toggle' style='background-color:${WMECSpeeds.speedColors.Others};' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: auto; margin: 0; padding: 0; min-width: 90px;'>`;
     for (let i = 0; colors[i]; ++i) {
         let test = (colors[i].match(/\(/)) ? true : false;
         switch (test) {
@@ -904,7 +902,7 @@ function createNewSpeedColorDialog() {
 // *************
 
 async function createTab() {
-    const { tabLabel, tabPane } = W.userscripts.registerSidebarTab('Speeds');
+    const { tabLabel, tabPane } = W.userscripts.registerSidebarTab('ColorSpeeds');
     if (debug) log('Starting tab creation');
     const labelText = $('<div>').append(
         $('<span>', {
@@ -968,7 +966,7 @@ async function createTab() {
     content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[15][CSI18n]}:</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOffset' min='1' max='10' value='' pattern='[0-9]{2}'/></div>";
-    content += "<div class='divr'><input id='sliderOffset' type='range' max='10' min='1' step='1' style='width:180px;height:24px;'></div>";
+    content += "<div class='divr'><input id='sliderOffset' type='range' max='10' min='1' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
     content += '</div>';
 
     // Opacity Value
@@ -977,7 +975,7 @@ async function createTab() {
     content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[16][CSI18n]}:</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOpacity' min='20' max='100' value='' pattern='[0-9]{3}'/></div>";
-    content += "<div class='divr'><input id='sliderOpacity' type='range' max='100' min='20'  step='1' style='width:180px;height:24px;'></div>";
+    content += "<div class='divr'><input id='sliderOpacity' type='range' max='100' min='20'  step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
     content += '</div>';
 
     // Thickness Value
@@ -986,7 +984,7 @@ async function createTab() {
     content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[17][CSI18n]}:</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valThickness' min='2' max='10' value='' pattern='[0-9]{2}'/></div>";
-    content += "<div class='divr'><input id='sliderThickness' type='range' max='10' min='2' step='1' style='width:180px;height:24px;'></div>";
+    content += "<div class='divr'><input id='sliderThickness' type='range' max='10' min='2' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
     content += '</div>';
 
     /*
@@ -1007,7 +1005,7 @@ async function createTab() {
     tabPane.id = 'tab-colorspeeds';
 
     // Fix tab content div spacing.
-    $(tabPane).parent().css({ width: 'auto', padding: '4px' });
+    // $(tabPane).parent().css({ width: 'auto', padding: '4px' });
 
     await W.userscripts.waitForElementConnected(tabPane);
     if (debug) log('Tab loaded');
@@ -1089,7 +1087,6 @@ function LoadSettings() {
     if (WMECSpeeds.MultiplePalette === false && WMECSpeeds.PaletteByCountrie === false) {
         Object.keys(WMECSpeeds.speedColors[unit]).forEach(valSpeed => {
             const color = WMECSpeeds.speedColors[unit][valSpeed];
-
             const div = document.createElement('div');
             div.className = 'divContent';
 
@@ -1303,6 +1300,10 @@ function LoadSettings() {
         // getId(`cbRoad${type}`).style.marginTop = '2px';
         // getId(`cbRoad${type}`).style.width = '15px';
         // getId(`cbRoad${type}`).style.height = '15px';
+
+        getId(`cbRoad${type}`).onclick = (() => {
+            SCColor();
+        });
     }
     if (debug) log('Settings Loaded');
     setupHandler();
@@ -1369,6 +1370,7 @@ function setupHandler() {
         getId('CSroadType').innerHTML = '';
         LoadSettings();
     });
+
     getId('edit_others').onclick = (() => {
         getId('Conf_Others').style.display = 'block';
         getId('Conf_Color').style.display = 'none';
