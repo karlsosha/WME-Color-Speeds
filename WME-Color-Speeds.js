@@ -456,7 +456,7 @@ function checkUnit() {
     if (CSpeedsModel.isImperial) {
         unit = 'mph';
     } else {
-        unit = 'km/h';
+        unit = 'kmh';
     }
     log(unit);
     if (getId('CStable')) {
