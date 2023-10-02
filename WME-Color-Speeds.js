@@ -224,25 +224,25 @@ const dashStyles = [
 let CSI18n = 'en';
 
 const CSlang = {
-    1: { fr: 'Vitesses', en: 'Speeds' },
-    2: { fr: 'Configuration des Couleurs', en: 'Color Control Panel' },
-    3: { fr: 'Couleurs', en: 'Colors' },
-    4: { fr: 'Ajouter nouvelle vitesse', en: 'Add new speed' },
+    1: { fr: 'Vitesses&nbsp;:', en: 'Speeds:' },
+    2: { fr: 'Configuration des couleurs&nbsp;:', en: 'Color Control Panel:' },
+    3: { fr: 'Couleurs&nbsp;:', en: 'Colors:' },
+    4: { fr: 'Ajouter une vitesse', en: 'Add new speed' },
     5: { fr: 'Supprimer', en: 'Delete' },
     6: { fr: 'Annuler', en: 'Cancel' },
     7: { fr: 'Autres', en: 'Others' },
     8: { fr: 'Modifier', en: 'Edit' },
     9: { fr: 'Type de route', en: 'Road type' },
     10: { fr: 'Zoom', en: 'Zoom' },
-    11: { fr: 'Rouge', en: 'Red' },
-    12: { fr: 'Vert', en: 'Green' },
-    13: { fr: 'Bleu', en: 'Blue' },
+    11: { fr: 'Rouge&nbsp;:', en: 'Red:' },
+    12: { fr: 'Vert&nbsp;:', en: 'Green:' },
+    13: { fr: 'Bleu&nbsp;:', en: 'Blue:' },
     14: { fr: 'Valider', en: 'Validate' },
-    15: { fr: 'Decalage', en: 'Offset' },
-    16: { fr: 'Opacite', en: 'Opacity' },
-    17: { fr: 'Epaisseur', en: 'Thickness' },
-    18: { fr: 'Rond-Point', en: 'Roundabout' },
-    19: { fr: 'Une palette par pays', en: 'One palette by  country' },
+    15: { fr: 'Décalage&nbsp;:', en: 'Offset:' },
+    16: { fr: 'Opacité&nbsp;:', en: 'Opacity:' },
+    17: { fr: 'Épaisseur&nbsp;:', en: 'Thickness:' },
+    18: { fr: 'Rond-point', en: 'Roundabout' },
+    19: { fr: 'Une palette par pays', en: 'One palette by country' },
     20: { fr: 'Une palette par état (USA uniquement)', en: 'One Palette by State (US only)' },
     21: { fr: 'pour', en: 'for' },
     22: { fr: 'Autoroute', en: 'Freeway' },
@@ -254,7 +254,9 @@ const CSlang = {
     28: { fr: 'Rue étroite', en: 'Narrow Street' },
     29: { fr: 'Voie de parking', en: 'Parking Lot Road' },
     30: { fr: 'Voie privée', en: 'Private Road' },
-    31: { fr: 'Chemin de terre', en: 'Off Road' }
+    31: { fr: 'Chemin de terre', en: 'Off Road' },
+    32: { fr: 'Vitesses', en: 'Speeds' },
+    33: { fr: 'Couleurs', en: 'Colors' },
 };
 
 WMECSpeeds.visibility = true;
@@ -839,7 +841,7 @@ function createNewSpeedColorDialog() {
     newspeedColorDialog.style.background = 'rgba(255, 255, 255, 1)';
 
     let content = "<div style='clear:both;'></div>";
-    content += `<div class='divc' style='width:200px; font-weight:bold;'>${CSlang[2][CSI18n]}:</div>`;
+    content += `<div class='divc' style='width:200px; font-weight:bold;'>${CSlang[2][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:10px;'></div>";
 
     // header table
@@ -847,7 +849,7 @@ function createNewSpeedColorDialog() {
 
     // Edit other color
     content += "<div class='divContentConf' id='Conf_Others' style='display:none;'>";
-    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[1][CSI18n]}: </div>`;
+    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[1][CSI18n]} </div>`;
     content += `<div class='divll' style='width:60px;font-weight:bold;'>${CSlang[7][CSI18n]}</div>`;
     content += "<div class='divl' style='width:45px;'>&nbsp;</div>";
     content += "<div style='clear:both; padding-top:10px;'></div>";
@@ -856,7 +858,7 @@ function createNewSpeedColorDialog() {
 
     // Edit speed color
     content += "<div class='divContentConf' id='Conf_Color' style='display:none;'>";
-    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[1][CSI18n]}: </div>`;
+    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[1][CSI18n]} </div>`;
     content += "<div class='divll speed' style='width:60px;'><input type='text' value='' id='newspeed'/></div>";
     content += `<div class='divl' id='unitvalue' style='width:45px;font-size:11px;font-weight:bold;line-height:20px;'>(${unit})</div>`;
     content += "<div style='clear:both; padding-top:10px;'></div>";
@@ -883,7 +885,7 @@ function createNewSpeedColorDialog() {
     // Red Value
     content += "<div class='CScontentConf'>";
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:60px;font-weight:bold; color:red;'>${CSlang[11][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:60px;font-weight:bold; color:red;'>${CSlang[11][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' max='255' min='0' value='' id='valRed' pattern='[0-9]{3}' /></div>";
     content += "<div class='divr'><input id='sliderRed' type='range' max='255' min='0' style='width:180px;height:24px;'></div>";
@@ -892,7 +894,7 @@ function createNewSpeedColorDialog() {
     // Green Value
     content += "<div style='clear:both; padding-top:10px;'></div>";
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:60px;font-weight:bold; color:green;'>${CSlang[12][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:60px;font-weight:bold; color:green;'>${CSlang[12][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' max='255' min='0' value='' id='valGreen' pattern='[0-9]{3}' /></div>";
     content += "<div class='divr'><input id='sliderGreen' type='range' max='255' min='0' style='width:180px;height:24px;'></div>";
@@ -901,7 +903,7 @@ function createNewSpeedColorDialog() {
 
     // Bleu Value
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:60px;font-weight:bold; color:blue;'>${CSlang[13][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:60px;font-weight:bold; color:blue;'>${CSlang[13][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' max='255' min='0' value='' id='valBlue' pattern='[0-9]{3}' /></div>";
     content += "<div class='divr'><input id='sliderBlue' type='range' max='255' min='0' style='width:180px;height:24px;'></div>";
@@ -930,7 +932,7 @@ async function createTab() {
         $('<span>', {
             id: 'cspeedstablabel',
             class: 'fa fa-dashboard',
-            title: `${CSlang[1][CSI18n]}`
+            title: `${CSlang[32][CSI18n]}`
         })
     ).html();
 
@@ -962,7 +964,7 @@ async function createTab() {
 
     // Speed table header
     content += "<div style='clear: both; padding-top:10px;'></div><div class='CScontent'>";
-    content += `<div class='divHeadline'><div class='divl' style='width:60px;'>${CSlang[1][CSI18n]}</div><div class='divr' id='unitvalue' style='width:45px;font-size:11px;line-height:20px;'>(${unit})</div><div class='divr' style='width:130px;'>${CSlang[3][CSI18n]}</div></div>`;
+    content += `<div class='divHeadline'><div class='divl' style='width:60px;'>${CSlang[32][CSI18n]}</div><div class='divr' id='unitvalue' style='width:45px;font-size:11px;line-height:20px;'>(${unit})</div><div class='divr' style='width:130px;'>${CSlang[33][CSI18n]}</div></div>`;
 
     // Speed table
     content += `<div class='divContent'><div class='divl speed' style='width:60px;'>${CSlang[7][CSI18n]}</div>`;
@@ -985,7 +987,7 @@ async function createTab() {
     // Offset Value
     content += "<br><div style='clear:both; padding-top:10px;'></div>";
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[15][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[15][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOffset' min='1' max='10' value='' pattern='[0-9]{2}'/></div>";
     content += "<div class='divr'><input id='sliderOffset' type='range' max='10' min='1' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
@@ -994,7 +996,7 @@ async function createTab() {
     // Opacity Value
     content += "<div style='clear:both; padding-top:10px;'></div>";
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[16][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[16][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOpacity' min='20' max='100' value='' pattern='[0-9]{3}'/></div>";
     content += "<div class='divr'><input id='sliderOpacity' type='range' max='100' min='20'  step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
@@ -1003,7 +1005,7 @@ async function createTab() {
     // Thickness Value
     content += "<div style='clear:both; padding-top:10px;'></div>";
     content += "<div class='divContentConf'>";
-    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[17][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[17][CSI18n]}</div>`;
     content += "<div style='clear:both; padding-top:2px;'></div>";
     content += "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valThickness' min='2' max='10' value='' pattern='[0-9]{2}'/></div>";
     content += "<div class='divr'><input id='sliderThickness' type='range' max='10' min='2' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
