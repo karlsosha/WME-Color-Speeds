@@ -41,7 +41,7 @@ const greasyForkUrl = GM_info.script.namespace;
 const downloadUrl = 'https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js';
 const forumUrl = 'https://www.waze.com/forum/viewtopic.php?t=167387';
 // let oldScriptVersion;
-const debug = true;
+const debug = false;
 let WMECSpeeds = {};
 let loadStartTime;
 let scriptStartTime;
@@ -858,11 +858,11 @@ function createNewSpeedColorDialog() {
 
     // Edit speed color
     content += "<div class='divContentConf' id='Conf_Color' style='display:none;'>";
-    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[1][CSI18n]} </div>`;
+    content += `<div class='divll' style='width:75px;font-weight:bold;'>${CSlang[1][CSI18n]} </div>`;
     content += "<div class='divll speed' style='width:60px;'><input type='text' value='' id='newspeed'/></div>";
     content += `<div class='divl' id='unitvalue' style='width:45px;font-size:11px;font-weight:bold;line-height:20px;'>(${unit})</div>`;
     content += "<div style='clear:both; padding-top:10px;'></div>";
-    content += `<div class='divll' style='width:70px;font-weight:bold;'>${CSlang[3][CSI18n]}:</div>`;
+    content += `<div class='divll' style='width:75px;font-weight:bold;'>${CSlang[3][CSI18n]} </div>`;
     content += '</div>';
 
     content += `<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfColor' class='btn dropdown-toggle' style='background-color:${WMECSpeeds.speedColors.Others};' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: auto; margin: 0; padding: 0; min-width: 90px;'>`;
