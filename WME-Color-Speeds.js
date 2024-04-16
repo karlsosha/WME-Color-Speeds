@@ -1741,7 +1741,7 @@ function SCColor() {
         var attributes = segment.attributes;
         var roadType = attributes.roadType;
         var roundabout = (attributes.junctionID === null) ? false : true;
-        var line = getId(segment.geometry.id);
+        var line = getId(segment.getOLGeometry().id);
         var fwdspeed = attributes.fwdMaxSpeed;
         var revspeed = attributes.revMaxSpeed;
         var fwdspeedUnverified = attributes.fwdMaxSpeedUnverified;
@@ -1846,7 +1846,7 @@ function SCColor() {
 
                 var points = [];
                 var segID = attributes.id;
-                points = shiftGeometry(shiftValue, segment.geometry.getVertices(), CSpeedsModel.countries.top.leftHandTraffic);
+                points = shiftGeometry(shiftValue, segment.getOLGeometry().getVertices(), CSpeedsModel.getTopCountry().getAttribute('leftHandTraffic'));
 
                 var newline = new CSpeedOpenLayers.Geometry.LineString(points);
 
@@ -1889,7 +1889,7 @@ function SCColor() {
                 var points = [];
                 var segID = attributes.id;
 
-                points = shiftGeometry(shiftValue, segment.geometry.getVertices(), !CSpeedsModel.countries.top.leftHandTraffic);
+                points = shiftGeometry(shiftValue, segment.getOLGeometry().getVertices(), !CSpeedsModel.getTopCountry().getAttribute('leftHandTraffic'));
 
                 var newline = new CSpeedOpenLayers.Geometry.LineString(points);
 
