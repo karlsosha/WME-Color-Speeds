@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2023.10.02.01
+// @version          2024.04.15.01
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
