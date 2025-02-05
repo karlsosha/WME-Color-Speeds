@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2024.04.15.01
+// @version          2025.02.04.01
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -34,8 +34,8 @@
 const scriptName = GM_info.script.name;
 // eslint-disable-next-line camelcase
 const currentVersion = GM_info.script.version;
-const changelogFrench = 'MIS À JOUR : Traduction française et typographie.<br><br>AMÉLIORÉ : Nouvelles infobulles (traduites).<br><br>AMÉLIORÉ : Outils de diagnostic cachés. Vroum vroum !<br><br>';
-const changelogEnglish = 'UPDATED: French translation and typography<br><br>ENHANCEMENT: New localized tooltips<br><br>ENHANCEMENT: Under the hood diagnostic tools. Vroom vroom<br><br>';
+const changelogFrench = 'UPDATED: Rollback code';
+const changelogEnglish = 'UPDATED: Rollback code';
 // eslint-disable-next-line camelcase
 const greasyForkUrl = GM_info.script.namespace;
 const downloadUrl = 'https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js';
