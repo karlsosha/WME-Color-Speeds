@@ -14,6 +14,7 @@
 // @grant            GM_xmlhttpRequest
 // @grant            unsafeWindow
 // @connect          greasyfork.org
+// @require          https://cdn.jsdelivr.net/npm/@turf/turf@7.2.0/turf.min.js
 // @namespace        https://greasyfork.org/scripts/14044-wme-color-speeds
 // @require          https://greasyfork.org/scripts/24851-wazewrap/code/WazeWrap.js
 // @author           Created by French Script Team, Maintained by WazeDev
@@ -22,15 +23,13 @@
 
 /* global W */
 /* global WazeWrap */
-/* global GM_info */
-/* global CSpeedsWaze */
-/* global I18n */
-/* global $ */
 
 // *********************
 // **  DECLARATIONS   **
 // *********************
-import type { WmeSDK } from "wme-sdk-typings";
+// import type { City, Country, Pixel, State, WmeSDK, SdkFeatureStyleContext, SdkFeatureStylePredicate, SdkFeature } from "wme-sdk-typings";
+// import WazeWrap from "https://greasyfork.org/scripts/24851-wazewrap/code/WazeWrap.js";
+// import * as turf from "@turf/turf";
 
 let sdk: WmeSDK;
 unsafeWindow.SDK_INITIALIZED.then(() => {
@@ -47,17 +46,65 @@ unsafeWindow.SDK_INITIALIZED.then(() => {
 });
 
 function colorSpeeds() {
+    type SpeedRecord = Record<number, string>;
+    interface SpeedColors {
+        [key: string]: Record<string, SpeedRecord> | SpeedRecord | string;
+        kmh: SpeedRecord;
+        mph: SpeedRecord;
+        Others: string;
+        US: Record<string, SpeedRecord>;
+        Countries: Record<string, SpeedRecord>;
+    }
+    interface WMECSpeedsSettings {
+        [key: string]: number | boolean | undefined | SpeedColors | Record<number, RoadTypeConfig>;
+        speedColors: SpeedColors | undefined;
+        typeOfRoad: Record<number, RoadTypeConfig> | undefined;
+        visibility: boolean | undefined;
+        togglerChecked: boolean | undefined;
+        multiplePalette: boolean;
+        PaletteByCountrie: boolean;
+        offsetValue: number | undefined;
+        opacityValue: number | undefined;
+        thicknessValue: number | undefined;
+    }
+
+    interface RoadTypeConfig {
+        [key: string]: number | boolean | string;
+        name: string;
+        checked: boolean;
+        zoom: number | boolean;
+    }
+    interface RGB {
+        r: number;
+        g: number;
+        b: number;
+        name: string | null;
+    }
+
     const scriptName = GM_info.script.name;
     const currentVersion = GM_info.script.version;
     const changelogFrench = "UPDATED: Rollback code";
     const changelogEnglish = "UPDATED: Rollback code";
     const greasyForkUrl = GM_info.script.namespace;
     const downloadUrl = "https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js";
-    const forumUrl = "https://www.waze.com/forum/viewtopic.php?t=167387";
+    const forumUrl = "https://www.waze.com/discuss/t/script-wme-color-speeds-v1-2-6/179401";
     const debug = false;
-    let WMECSpeeds = {};
-    let loadStartTime;
-    let scriptStartTime;
+    let WMECSpeeds: WMECSpeedsSettings = {
+        speedColors: undefined,
+        typeOfRoad: undefined,
+        visibility: undefined,
+        togglerChecked: false,
+        multiplePalette: false,
+        PaletteByCountrie: false,
+        offsetValue: undefined,
+        opacityValue: undefined,
+        thicknessValue: undefined,
+    };
+    let loadStartTime: EpochTimeStamp;
+    let CSpeedI18n: string;
+    let CSCountry: Country | null = sdk.DataModel.Countries.getTopCountry();
+    let CSTopState: State | null = sdk.DataModel.States.getTopState();
+    const scriptStartTime = performance.now();
 
     const iconUndo =
         "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";
@@ -307,6 +354,8 @@ function colorSpeeds() {
             85: "#8f07ff",
         },
         Others: "#f00",
+        US: {},
+        Countries: {},
     };
 
     const colorsUS = {
@@ -367,11 +416,10 @@ function colorSpeeds() {
 
     const multiplePalette = false;
     const paletteByCountry = false;
-    let unit;
-    let selectedState;
-    let selectedCountry;
+    let unit: string;
+    let selectedState: State;
+    let selectedCountry: Country;
 
-    let mapLayer = [];
     let toggler;
     let groupToggler;
 
@@ -380,7 +428,7 @@ function colorSpeeds() {
     // var RoadUpToStreet = [2,3,6,7];
     // var highway = [3,6,7];
 
-    const typeOfRoad = {
+    const typeOfRoad: Record<number, RoadTypeConfig> = {
         3: { name: "Freeways", checked: true, zoom: 14 },
         6: { name: "Major Highway", checked: true, zoom: 14 },
         7: { name: "Minor Highway", checked: true, zoom: 14 },
@@ -443,6 +491,63 @@ function colorSpeeds() {
         },
     };
 
+    const CSLayer = {
+        name: "Color Speeds",
+    };
+    const styleConfig = {
+        styleContext: {
+            strokeColor: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context.feature.properties?.style?.strokeColor;
+            },
+            strokeOpacity: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.strokeOpacity;
+            },
+            strokeWidth: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.strokeWidth;
+            },
+            strokeDashstyle: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.strokeDashstyle;
+            },
+            fillOpacity: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.fillOpacity;
+            },
+            pointRadius: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.pointRadius;
+            },
+            labelText: (context: {feature: SdkFeature, zoomLevel: number}) => {
+                return context?.feature?.properties?.style?.labelText;
+            },
+        },
+        styleRules: [
+            {
+                predicate: (properties, zoomLevel) => {
+                    return properties.styleName === "colorspeedsStyle";
+                },
+                style: {
+                    pointRadius: 2,
+                    fontWeight: "normal",
+                    label: "${labelText}",
+                    fontFamily: "Tahoma, Courier New",
+                    labelOutlineColor: "#FFFFFF",
+                    labelOutlineWidth: 2,
+                    fontColor: "#000000",
+                    fontSize: "10px",
+                },
+            },
+            {
+                predicate: (properties, zoomLevel) => {
+                    return properties.styleName === "colorspeedsLineStyle";
+                },
+                style: {
+                    strokeColor: "${strokeColor}",
+                    strokeOpacity: "${strokeOpacity}",
+                    strokeWidth: "${strokeWidth}",
+                    strokeDashstyle: "${strokeDashstyle}",
+                },
+            },
+        ],
+    };
+
     //   5: "Walking Trails",
     //  10: "Pedestrian Bw",
     //  14: "Ferry",
@@ -470,74 +575,82 @@ const dashStyles = [
 */
     let CSI18n = "en";
 
-    const CSlang = {
-        1: { fr: "Vitesses&nbsp;:", en: "Speeds:" },
-        2: { fr: "Configuration des couleurs&nbsp;:", en: "Color Control Panel:" },
-        3: { fr: "Couleurs&nbsp;:", en: "Colors:" },
-        4: { fr: "Ajouter une vitesse", en: "Add new speed" },
-        5: { fr: "Supprimer", en: "Delete" },
-        6: { fr: "Annuler", en: "Cancel" },
-        7: { fr: "Autres", en: "Others" },
-        8: { fr: "Modifier", en: "Edit" },
-        9: { fr: "Type de route", en: "Road type" },
-        10: { fr: "Zoom", en: "Zoom" },
-        11: { fr: "Rouge&nbsp;:", en: "Red:" },
-        12: { fr: "Vert&nbsp;:", en: "Green:" },
-        13: { fr: "Bleu&nbsp;:", en: "Blue:" },
-        14: { fr: "Valider", en: "Validate" },
-        15: { fr: "Décalage&nbsp;:", en: "Offset:" },
-        16: { fr: "Opacité&nbsp;:", en: "Opacity:" },
-        17: { fr: "Épaisseur&nbsp;:", en: "Thickness:" },
-        18: { fr: "Rond-point", en: "Roundabout" },
-        19: { fr: "Une palette par pays", en: "One palette by country" },
-        20: { fr: "Une palette par état (USA uniquement)", en: "One Palette by State (US only)" },
-        21: { fr: "pour", en: "for" },
-        22: { fr: "Autoroute", en: "Freeway" },
-        23: { fr: "Route majeure", en: "Major Highway" },
-        24: { fr: "Route mineure", en: "Minor Highway" },
-        25: { fr: "Bretelle", en: "Ramps" },
-        26: { fr: "Rue principale", en: "Primary Street" },
-        27: { fr: "Rue", en: "Street" },
-        28: { fr: "Rue étroite", en: "Narrow Street" },
-        29: { fr: "Voie de parking", en: "Parking Lot Road" },
-        30: { fr: "Voie privée", en: "Private Road" },
-        31: { fr: "Chemin de terre", en: "Off Road" },
-        32: { fr: "Vitesses", en: "Speeds" },
-        33: { fr: "Couleurs", en: "Colors" },
-    };
+    interface LocalizationValues {
+        [key: string]: string;
+        fr: string;
+        en: string;
+    }
+
+    const CSlang: LocalizationValues[] = [
+        { fr: "", en: "" },
+        { fr: "Vitesses&nbsp;:", en: "Speeds:" },
+        { fr: "Configuration des couleurs&nbsp;:", en: "Color Control Panel:" },
+        { fr: "Couleurs&nbsp;:", en: "Colors:" },
+        { fr: "Ajouter une vitesse", en: "Add new speed" },
+        { fr: "Supprimer", en: "Delete" },
+        { fr: "Annuler", en: "Cancel" },
+        { fr: "Autres", en: "Others" },
+        { fr: "Modifier", en: "Edit" },
+        { fr: "Type de route", en: "Road type" },
+        { fr: "Zoom", en: "Zoom" },
+        { fr: "Rouge&nbsp;:", en: "Red:" },
+        { fr: "Vert&nbsp;:", en: "Green:" },
+        { fr: "Bleu&nbsp;:", en: "Blue:" },
+        { fr: "Valider", en: "Validate" },
+        { fr: "Décalage&nbsp;:", en: "Offset:" },
+        { fr: "Opacité&nbsp;:", en: "Opacity:" },
+        { fr: "Épaisseur&nbsp;:", en: "Thickness:" },
+        { fr: "Rond-point", en: "Roundabout" },
+        { fr: "Une palette par pays", en: "One palette by country" },
+        {
+            fr: "Une palette par état (USA uniquement)",
+            en: "One Palette by State (US only)",
+        },
+        { fr: "pour", en: "for" },
+        { fr: "Autoroute", en: "Freeway" },
+        { fr: "Route majeure", en: "Major Highway" },
+        { fr: "Route mineure", en: "Minor Highway" },
+        { fr: "Bretelle", en: "Ramps" },
+        { fr: "Rue principale", en: "Primary Street" },
+        { fr: "Rue", en: "Street" },
+        { fr: "Rue étroite", en: "Narrow Street" },
+        { fr: "Voie de parking", en: "Parking Lot Road" },
+        { fr: "Voie privée", en: "Private Road" },
+        { fr: "Chemin de terre", en: "Off Road" },
+        { fr: "Vitesses", en: "Speeds" },
+        { fr: "Couleurs", en: "Colors" },
+    ];
 
     WMECSpeeds.visibility = true;
 
     const offsetValue = 3;
     const opacityValue = 0.8;
     const thicknessValue = 6;
-    let newspeedColorDialog;
+    let newspeedColorDialog: JQuery<HTMLElement>;
 
     // **********************
     // ** HELPER FUNCTIONS **
     // **********************
 
-    function log(msg, obj) {
+    function log(msg: string, obj: any = null) {
         if (obj == null) {
-            // eslint-disable-next-line camelcase, no-undef
             console.log(`${GM_info.script.name} v${currentVersion} - ${msg}`);
         } else if (debug) {
-            // eslint-disable-next-line camelcase, no-undef
-            console.debug(`${GM_info.script.name} v${currentVersion} - ${msg} `, obj);
+            console.debug(`${GM_info.script.name} v${currentVersion} - ${msg} `, obj.toString());
         }
     }
 
-    function getId(node) {
-        return document.getElementById(node);
-    }
+    // function getId(node: string) {
+    //     return document.getElementById(node);
+    // }
 
-    function getElementsByClassName(classname, node) {
-        node = node || document.body;
-        return Array.from(node.querySelectorAll(`.${classname}`));
-    }
+    // function getElementsByClassName(classname: string, node: ParentNode) {
+    //     node = node || document.body;
+    //     return Array.from(node.querySelectorAll(`.${classname}`));
+    // }
 
     function getFunctionWithArgs(func, args) {
-        return (function () {
+        return (() => {
             const jsonArgs = JSON.stringify(args);
             return function () {
                 args = JSON.parse(jsonArgs);
@@ -546,7 +659,8 @@ const dashStyles = [
         })();
     }
 
-    function IsJsonString(str) {
+    function IsJsonString(str: string | null) {
+        if (str === null) return;
         try {
             JSON.parse(str);
         } catch (e) {
@@ -555,18 +669,18 @@ const dashStyles = [
         return true;
     }
 
-    function cloneObj(obj) {
-        const copy = JSON.parse(JSON.stringify(obj));
-        return copy;
-    }
+    // function cloneObj(obj: Object) {
+    //     const copy = JSON.parse(JSON.stringify(obj));
+    //     return copy;
+    // }
 
-    function Rgb2String(rgb) {
+    function Rgb2String(rgb: RGB) {
         rgb = roundDecimals(rgb);
         return `rgb(${rgb.r},${rgb.g},${rgb.b})`;
         // return "rgb(" + Math.round(rgb.r) +","+ Math.round(rgb.g) +","+ Math.round(rgb.b) +")";
     }
 
-    function color2Rgb(c) {
+    function color2Rgb(c: string): RGB {
         c = c.toLowerCase();
 
         function parseRgb(arr) {
@@ -598,9 +712,9 @@ const dashStyles = [
 
                 if (matchIndex !== -1) {
                     return {
-                        r: arr[0],
-                        g: arr[1],
-                        b: arr[2],
+                        r: Number.parseInt(arr[0]),
+                        g: Number.parseInt(arr[1]),
+                        b: Number.parseInt(arr[2]),
                         name: colornames[matchIndex],
                     };
                 }
@@ -646,8 +760,8 @@ const dashStyles = [
         };
     }
 
-    // eslint-disable-next-line consistent-return
-    function getColorArr(x) {
+    type colorArrayTypes = "names" | "hexs" | "rgbs";
+    function getColorArr(x: colorArrayTypes) {
         if (x === "names") {
             return [
                 "AliceBlue",
@@ -1106,7 +1220,7 @@ const dashStyles = [
         }
     }
     // I don't think this is needed anymore
-    function roundDecimals(c) {
+    function roundDecimals(c: RGB) {
         c.r = Math.round(c.r);
         c.g = Math.round(c.g);
         c.b = Math.round(c.b);
@@ -1115,82 +1229,40 @@ const dashStyles = [
 
     function checkUnit() {
         // eslint-disable-next-line no-undef
-        if (CSpeedsModel.isImperial) {
+        if (sdk.Settings.getUserSettings().isImperial) {
             unit = "mph";
         } else {
             unit = "kmh";
         }
         log(unit);
-        if (getId("CStable")) {
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+        const csTable = $("#CSTable");
+        if (csTable !== null) {
+            csTable.html("");
+            $("#CSroadType").html("");
             LoadSettings();
-            getId("unitvalue").innerHTML = `(${unit})`;
+            $("#unitvalue").html(`(${unit})`);
         }
     }
 
     function createToggler() {
         // Layers switcher
-        // test with script toggler----------------
-        const oldTogglers = document.querySelectorAll(".togglers");
-        oldTogglers.forEach((elt, idx) => {
-            if (elt.id !== "toolboxUl") {
-                if (oldTogglers[idx].querySelector(".layer-switcher-group_scripts") === null) {
-                    const newScriptsToggler = document.createElement("li");
-                    newScriptsToggler.className = "group";
-                    newScriptsToggler.innerHTML =
-                        '<div class="controls-container main toggler">\
-                                                <input class="layer-switcher-group_scripts toggle" id="layer-switcher-group_scripts" type="checkbox">\
-                                                <label for="layer-switcher-group_scripts">\
-                                                <span class="label-text">Scripts</span>\
-                                                </label>\
-                                              </div>\
-                                              <ul class="children">\
-                                              </ul>';
-                    oldTogglers[idx].appendChild(newScriptsToggler);
-                }
-
-                const layerSwitcher = document.createElement("li");
-                layerSwitcher.innerHTML =
-                    '<div class="controls-container toggler">\
-                                        <input class="layer-switcher-item_WME_Color_Speeds toggle" id="layer-switcher-item_WME_Color_Speeds" type="checkbox">\
-                                        <label for="layer-switcher-item_WME_Color_Speeds">\
-                                          <span class="label-text">Color Speeds</span>\
-                                        </label>\
-                                      </div>';
-
-                let groupScripts = document.querySelector(".layer-switcher-group_scripts").parentNode.parentNode;
-                let newScriptsChildren = getElementsByClassName("children", groupScripts)[0];
-                newScriptsChildren.appendChild(layerSwitcher);
-
-                toggler = getId("layer-switcher-item_WME_Color_Speeds");
-                groupToggler = getId("layer-switcher-group_scripts");
-                groupToggler.checked =
-                    typeof localStorage.groupScriptsToggler !== "undefined"
-                        ? JSON.parse(localStorage.groupScriptsToggler)
-                        : true;
-
-                toggler.checked = WMECSpeeds.togglerChecked;
-                toggler.disabled = !groupToggler.checked;
-
-                toggler.addEventListener("click", (e) => {
-                    mapLayer.setVisibility(e.target.checked);
-                    saveOption();
-                });
-
-                groupToggler.addEventListener("click", (e) => {
-                    toggler.disabled = !e.target.checked;
-                    mapLayer.setVisibility(toggler.checked ? e.target.checked : toggler.checked);
-                    localStorage.setItem("groupScriptsToggler", e.target.checked);
-                });
-            }
+        sdk.LayerSwitcher.addLayerCheckbox({
+            name: CSLayer.name,
+            isChecked: WMECSpeeds.visibility ?? false,
+        });
+        sdk.Events.on({
+            eventName: "wme-layer-checkbox-toggled",
+            eventHandler: (payload) => {
+                WMECSpeeds.visibility = payload.checked;
+                sdk.Map.setLayerVisibility({ layerName: payload.name, visibility: payload.checked });
+            },
         });
     }
 
     function changelogLocalizer() {
-        let changelog;
+        let changelog: string;
         // eslint-disable-next-line no-undef
-        CSpeedI18n = I18n.locale;
+        CSpeedI18n = sdk.Settings.getLocale().localeCode.split("-")[0];
         // eslint-disable-next-line no-undef
         if (CSpeedI18n === "fr") {
             changelog = changelogFrench;
@@ -1200,43 +1272,30 @@ const dashStyles = [
         return changelog;
     }
 
-    function getTopCountry() {
-        // eslint-disable-next-line no-undef
-        return CSpeedsModel.getTopCountry();
-    }
-
-    function getTopState() {
-        // eslint-disable-next-line no-undef
-        return CSpeedsModel.getTopState();
-    }
-
     function saveOption() {
-        WMECSpeeds.togglerChecked = getId("layer-switcher-item_WME_Color_Speeds").checked;
-        localStorage.setItem("WMEColorSpeeds", JSON.stringify(WMECSpeeds));
+        localStorage.setItem(sdk.getScriptName(), JSON.stringify(WMECSpeeds));
     }
     function destroyTab() {
-        W.userscripts.removeSidebarTab("ColorSpeeds");
+        // W.userscripts.removeSidebarTab("ColorSpeeds");
+        sdk.Sidebar.removeScriptTab();
         if (debug) log("Sidebar tab removed");
     }
 
     // *************
     // **  INIT   **
     // *************
-    function counterStart() {
-        loadStartTime = performance.now();
-        bootstrap();
-    }
-
     function bootstrap() {
-        scriptStartTime = performance.now();
-        // eslint-disable-next-line no-undef
-        if (WazeWrap?.Ready && W?.userscripts?.state.isReady) {
-            log("Starting");
-            init();
-        } else {
-            if (debug) log("WME and WW not ready");
-            setTimeout(bootstrap, 500);
+        loadStartTime = performance.now();
+
+        if (!WazeWrap.Ready) {
+            setTimeout(() => {
+                bootstrap();
+            }, 100);
+            return;
         }
+        CSCountry = sdk.DataModel.Countries.getTopCountry();
+        CSTopState = sdk.DataModel.States.getTopState();
+        init();
     }
 
     function showScriptInfoAlert() {
@@ -1270,70 +1329,14 @@ const dashStyles = [
     function init() {
         loadScriptUpdateMonitor();
         showScriptInfoAlert();
-        // Waze object needed
-        // eslint-disable-next-line no-undef
-        CSpeedsWaze = unsafeWindow.W;
-        if (typeof CSpeedsWaze === "undefined") {
-            if (debug) {
-                console.error("WME ColorSpeeds - CSpeedsWaze : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-        // eslint-disable-next-line no-undef
-        CSpeedsMap = CSpeedsWaze.map;
-        if (typeof CSpeedsMap === "undefined") {
-            if (debug) {
-                console.error("WME ColorSpeeds - CSpeedsmap : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-        // eslint-disable-next-line no-undef
-        CSpeedsModel = CSpeedsWaze.model;
-        if (typeof CSpeedsModel === "undefined") {
-            if (debug) {
-                console.error("WME ColorSpeeds - CSpeedsModel DOM : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-
-        // eslint-disable-next-line no-undef
-        CSpeedsCountries = CSpeedsModel.countries;
-        if (typeof CSpeedsCountries === "undefined") {
-            if (debug) {
-                console.error("WME ColorSpeeds - CSpeedsCountries DOM : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-        CSpeedsTopCountries = getTopCountry();
-        if (typeof CSpeedsTopCountries === "undefined" || getTopCountry() === null) {
-            if (debug) {
-                console.error("WME ColorSpeeds - CSpeedsCountries.top DOM : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-        if (typeof getTopCountry().attributes.name === "undefined") {
+        if (CSCountry?.name === undefined) {
             if (debug) {
                 console.error("WME ColorSpeeds - CSpeedsCountries.top.name DOM : NOK");
             }
-            window.setTimeout(init, 500);
+            unsafeWindow.setTimeout(init, 500);
             return;
         }
-        //    OpenLayers
-        CSpeedOpenLayers = unsafeWindow.OpenLayers;
-        if (typeof CSpeedOpenLayers === "undefined") {
-            if (debug) {
-                console.error("WME ColorSpeeds - OpenLayers : NOK");
-            }
-            window.setTimeout(init, 500);
-            return;
-        }
-        //    Traductions
-        CSpeedI18n = I18n.locale;
+        CSpeedI18n = sdk.Settings.getLocale().localeCode;
         if (typeof CSpeedI18n === "undefined") {
             if (debug) {
                 console.error("WME ColorSpeeds - CSpeedI18n : NOK");
@@ -1343,37 +1346,29 @@ const dashStyles = [
         }
 
         // Verify localStorage. Init if empty or not correct
-        if (
-            typeof localStorage.WMEColorSpeeds !== "undefined" &&
-            IsJsonString(localStorage.getItem("WMEColorSpeeds"))
-        ) {
+        if (localStorage.WMEColorSpeeds !== undefined && IsJsonString(localStorage?.getItem("WMEColorSpeeds"))) {
             WMECSpeeds = JSON.parse(localStorage.WMEColorSpeeds);
+            if (WMECSpeeds.speedColors === undefined)
+                WMECSpeeds.speedColors = {
+                    kmh: {},
+                    mph: {},
+                    Others: "",
+                    US: {},
+                    Countries: {},
+                };
             if (WMECSpeeds.speedColors.Others === undefined) WMECSpeeds.speedColors.Others = "#f00";
-            if (WMECSpeeds.speedColors.US === undefined) WMECSpeeds.speedColors.US = cloneObj(colorsUS);
+            if (WMECSpeeds.speedColors.US === undefined) WMECSpeeds.speedColors.US = structuredClone(colorsUS);
             if (WMECSpeeds.speedColors.Countries === undefined) WMECSpeeds.speedColors.Countries = {};
             if (WMECSpeeds.multiplePalette === undefined) WMECSpeeds.multiplePalette = multiplePalette;
             if (WMECSpeeds.PaletteByCountrie === undefined) WMECSpeeds.PaletteByCountrie = paletteByCountry;
             if (WMECSpeeds.offsetValue === undefined) WMECSpeeds.offsetValue = offsetValue;
             if (WMECSpeeds.opacityValue === undefined) WMECSpeeds.opacityValue = opacityValue;
             if (WMECSpeeds.thicknessValue === undefined) WMECSpeeds.thicknessValue = thicknessValue;
-            for (const key in typeOfRoad) {
-                if (WMECSpeeds.typeOfRoad.hasOwnProperty(key) === false) {
-                    WMECSpeeds.typeOfRoad[key] = cloneObj(typeOfRoad[key]);
-                }
-            }
+            WMECSpeeds.typeOfRoad = structuredClone(typeOfRoad);
             if (WMECSpeeds.togglerChecked === undefined) WMECSpeeds.togglerChecked = WMECSpeeds.visibility;
-            /* this if statement is no longer needed with WW
-        if (WMECSpeeds.version === undefined) {
-            oldScriptVersion = 0;
-        } else if (WMECSpeeds.version !== undefined) {
-            oldScriptVersion = WMECSpeeds.version;
-        }
-        */
-            WMECSpeeds.MultiplePalette =
-                getTopCountry().attributes.name === "United States" ? WMECSpeeds.MultiplePalette : false;
-            //        WMECSpeeds.MultiplePalette = (CSpeedsCountries.top.name == "United States")? WMECSpeeds.MultiplePalette : false;
+            WMECSpeeds.multiplePalette = CSCountry?.name === "United States" ? WMECSpeeds.multiplePalette : false;
 
-            log("Init ok");
+            log("Init ok", null);
             log("WMECSpeeds = ", WMECSpeeds);
         } else {
             localStorage.setItem("WMEColorSpeeds", JSON.stringify(WMECSpeeds));
@@ -1392,48 +1387,20 @@ const dashStyles = [
         checkUnit();
 
         // WME Layers check
-        let layers = CSpeedsMap.getLayersBy("uniqueName", "WME_Color_Speeds");
-        if (layers.length === 0) {
-            I18n.translations[CSpeedI18n].layers.name["WME_Color_Speeds"] = "Color Speeds";
-
-            const colorspeedsStyle = new CSpeedOpenLayers.Style({
-                pointRadius: 2,
-                fontWeight: "normal",
-                label: "${labelText}",
-                fontFamily: "Tahoma, Courier New",
-                labelOutlineColor: "#FFFFFF",
-                labelOutlineWidth: 2,
-                fontColor: "#000000",
-                fontSize: "10px",
-            });
-
-            mapLayer = new CSpeedOpenLayers.Layer.Vector(I18n.t("layers.name.WME_Color_Speeds"), {
-                displayInLayerSwitcher: true,
-                uniqueName: "WME_Color_Speeds",
-                styleMap: new CSpeedOpenLayers.StyleMap(colorspeedsStyle),
-            });
-
-            CSpeedsMap.addUniqueLayer(mapLayer);
-            mapLayer.setVisibility(WMECSpeeds.visibility);
-        }
+        sdk.Map.addLayer({
+            layerName: CSLayer.name,
+            styleContext: styleConfig.styleContext,
+            styleRules: styleConfig.styleRules,
+            zIndexing: true,
+        });
+        sdk.Map.setLayerZIndex({layerName: CSLayer.name, zIndex: 2104});
 
         createToggler();
+        sdk.Map.setLayerVisibility({
+            layerName: CSLayer.name,
+            visibility: WMECSpeeds.visibility ?? false,
+        });
 
-        // MTE mode event
-        /*
-      W.app.modeController.model.bind('change:mode', function(){
-      if (W.app.modeController.getState() !== undefined){
-        eventUnRegister();
-        try { colorspeeds_mapLayer.destroyFeatures();
-        }catch(err){log('err destroyFeatures: ',err);}
-      }
-      if (W.app.modeController.getState() === undefined){
-        eventUnRegister();
-        createToggler();
-        CSpeeds_css();
-      }
-    });
-    */
         // reload after changing WME units
         W.prefs.on("change:isImperial", () => {
             destroyTab();
@@ -1450,77 +1417,70 @@ const dashStyles = [
     }
 
     function createCSS() {
-        let CSpeedsCSS = getId("CSpeedsCSS");
-        if (CSpeedsCSS === null) {
-            CSpeedsCSS = document.createElement("style");
-            CSpeedsCSS.type = "text/css";
-            CSpeedsCSS.id = "CSpeedsCSS";
+        let CSpeedsCSS = $("#CSpeedsCSS");
+        if (CSpeedsCSS.length === 0) {
+            CSpeedsCSS = $("<style>", {type: "text/css", id: "CSpeedCSS"} );
+            // CSpeedsCSS.type = "text/css";
+            // CSpeedsCSS.id = "CSpeedsCSS";
         }
 
-        let css = ".CScontent {width:255px; margin-left:10px; box-shadow: 0 4px 10px #aaa;}";
-        css +=
-            ".divStateChoise {width:250px; margin-left:10px; color:#59899e; font-weight:bold; vertical-align: middle;}";
-        css +=
-            ".divHeadline {height:26px; font-weight:bold; padding-top:2px; border:2px solid #3d3d3d; background-color:#BEDCE5;}";
-        css += ".divContent {clear:both;height:26px; border:2px solid #3d3d3d; border-top:0;}";
-        css += ".divContentZoom { clear:both; height:26px; border:2px solid #3d3d3d; border-top:0;}";
-        css += ".divc {float:center; text-align:center;}";
-        css += ".divl {float:left; text-align:center;}";
-        css += ".divll {float:left; text-align:left;}";
-        css += ".divr {float:right; text-align:center;}";
-        css +=
-            ".speed {margin-top:2px; width:65px; height:20px; color:#59899e; font-weight:bold; vertical-align: middle;}";
-        css += ".divcolor { width:80px; height:17px; margin:4px 0 0 0; vertical-align: middle;}";
-        css +=
-            ".CStype {margin-top:2px; margin-left:10px; height:20px; color:#59899e; font-weight:bold; text-align:left; vertical-align: middle;}";
-        css +=
-            ".CScheckLabel {margin-top:5px; margin-left:10px; height:22px; color:#59899e; font-weight:bold; text-align:left; vertical-align: middle;}";
-        css += ".CScheck { float:left; width:22px; height:22px;}";
-        css += ".CSzoom {margin-top:2px; height:20px; color:#59899e; font-weight:bold; vertical-align: middle}";
-        css += "#newspeed {width:65px; height:26px; font-weight:bold;text-align:center;}";
-        css += "#editzoom { display:none;}";
-        css += "#newvalzoom {width:45px; height:24px; font-weight:bold;text-align:center;}";
-        css += ".CScontentConf {width:280px; margin-left:5px;}";
-        css += ".divContentConf {clear:both; line-height:24px; height:28px;}";
-        css += ".valColor {color:#59899e; font-weight:bold;}";
-        css += "#valRed {width:80px; height:28px; font-weight:bold; color:red;text-align:center;}";
-        css += "#valGreen {width:80px; height:28px; font-weight:bold; color:green;text-align:center;}";
-        css += "#valBlue {width:80px; height:28px; font-weight:bold; color:blue;text-align:center;}";
-        css += "#valOffset {width:80px; height:28px; font-weight:bold;text-align:center;}";
-        css += "#valOpacity {width:80px; height:28px; font-weight:bold;text-align:center;}";
-        css += "#valThickness {width:80px; height:28px; font-weight:bold;text-align:center;}";
-        css +=
-            "#ConfColor.dropdown-menu li:hover, #ConfColor+.dropdown-menu li:active, #ConfColor+.dropdown-menu li:focus { cursor: pointer; outline: #3B99FC dotted 1px; }";
-        css +=
-            "#ConfColor.btn { box-shadow: inset 0px -1px 0px rgba(0,0,0,0.2); border-radius: 4px; border: 1px solid rgba(0,0,0,0.25); height:22px; width:90px; }";
-        css += "#nameColor {width:120px; height:22px;}";
+        CSpeedsCSS.html([
+            ".CScontent {width:255px; margin-left:10px; box-shadow: 0 4px 10px #aaa;}",
+            ".divstateChoice {width:250px; margin-left:10px; color:#59899e; font-weight:bold; vertical-align: middle;}",
+            ".divHeadline {height:26px; font-weight:bold; padding-top:2px; border:2px solid #3d3d3d; background-color:#BEDCE5;}",
+            ".divContent {clear:both;height:26px; border:2px solid #3d3d3d; border-top:0;}",
+            ".divContentZoom { clear:both; height:26px; border:2px solid #3d3d3d; border-top:0;}",
+            ".divc {float:center; text-align:center;}",
+            ".divl {float:left; text-align:center;}",
+            ".divll {float:left; text-align:left;}",
+            ".divr {float:right; text-align:center;}",
+            ".speed {margin-top:2px; width:65px; height:20px; color:#59899e; font-weight:bold; vertical-align: middle;}",
+            ".divcolor { width:80px; height:17px; margin:4px 0 0 0; vertical-align: middle;}",
+            ".CStype {margin-top:2px; margin-left:10px; height:20px; color:#59899e; font-weight:bold; text-align:left; vertical-align: middle;}",
+            ".CScheckLabel {margin-top:5px; margin-left:10px; height:22px; color:#59899e; font-weight:bold; text-align:left; vertical-align: middle;}",
+            ".CScheck { float:left; width:22px; height:22px;}",
+            ".CSzoom {margin-top:2px; height:20px; color:#59899e; font-weight:bold; vertical-align: middle}",
+            "#newspeed {width:65px; height:26px; font-weight:bold;text-align:center;}",
+            "#editzoom { display:none;}",
+            "#newvalzoom {width:45px; height:24px; font-weight:bold;text-align:center;}",
+            ".CScontentConf {width:280px; margin-left:5px;}",
+            ".divContentConf {clear:both; line-height:24px; height:28px;}",
+            ".valColor {color:#59899e; font-weight:bold;}",
+            "#valRed {width:80px; height:28px; font-weight:bold; color:red;text-align:center;}",
+            "#valGreen {width:80px; height:28px; font-weight:bold; color:green;text-align:center;}",
+            "#valBlue {width:80px; height:28px; font-weight:bold; color:blue;text-align:center;}",
+            "#valOffset {width:80px; height:28px; font-weight:bold;text-align:center;}",
+            "#valOpacity {width:80px; height:28px; font-weight:bold;text-align:center;}",
+            "#valThickness {width:80px; height:28px; font-weight:bold;text-align:center;}",
+            "#ConfColor.dropdown-menu li:hover, #ConfColor+.dropdown-menu li:active, #ConfColor+.dropdown-menu li:focus { cursor: pointer; outline: #3B99FC dotted 1px; }",
+            "#ConfColor.btn { box-shadow: inset 0px -1px 0px rgba(0,0,0,0.2); border-radius: 4px; border: 1px solid rgba(0,0,0,0.25); height:22px; width:90px; }",
+            "#nameColor {width:120px; height:22px;}"
+        ].join(" "));
         // css +="#ConfDash.dropdown-menu li:hover, #ConfDash+.dropdown-menu li:active, #ConfDash+.dropdown-menu li:focus { cursor: pointer; outline: #3B99FC dotted 1px; }";
         // css +="#ConfDash.btn { box-shadow: inset 0px -1px 0px rgba(0,0,0,0.2); border-radius: 4px; border: 1px solid rgba(0,0,0,0.25); height:22px; width:90px; }";
-        CSpeedsCSS.innerHTML = css;
-        document.body.appendChild(CSpeedsCSS);
+        CSpeedsCSS.appendTo("head");
         createTab();
     }
 
     function createNewSpeedColorDialog() {
-        newspeedColorDialog = getId("newspeedColorDialog");
-        if (newspeedColorDialog === null) {
-            newspeedColorDialog = document.createElement("div");
-            newspeedColorDialog.id = "newspeedColorDialog";
+        newspeedColorDialog = $("#newspeedColorDialog");
+        if (newspeedColorDialog.length === 0) {
+            newspeedColorDialog = $('<div id="newspeedColorDialog"/>');
         }
 
         // newspeedColorDialog.style.fontSize = '90%';
-        newspeedColorDialog.style.display = "none";
-        newspeedColorDialog.style.top = "10px";
+        newspeedColorDialog.css("display", "none");
+        newspeedColorDialog.css("top", "10px");
         // newspeedColorDialog.style.left = '15px';
-        newspeedColorDialog.style.width = "300px";
-        newspeedColorDialog.style.height = "500px";
-        newspeedColorDialog.style.margin = "10px 10px 10px 0px";
-        newspeedColorDialog.style.borderRadius = "10px";
-        newspeedColorDialog.style.border = "1px solid #BEDCE5";
-        newspeedColorDialog.style.position = "relative";
-        newspeedColorDialog.style.padding = "5px";
-        newspeedColorDialog.style.overflow = "auto";
-        newspeedColorDialog.style.background = "rgba(255, 255, 255, 1)";
+        newspeedColorDialog.css("width", "300px");
+        newspeedColorDialog.css("height","500px");
+        newspeedColorDialog.css("margin","10px 10px 10px 0px");
+        newspeedColorDialog.css("borderRadius","10px");
+        newspeedColorDialog.css("border", "1px solid #BEDCE5");
+        newspeedColorDialog.css("position", "relative");
+        newspeedColorDialog.css("padding", "5px");
+        newspeedColorDialog.css("overflow", "auto");
+        newspeedColorDialog.css("background", "rgba(255, 255, 255, 1)");
 
         let content = "<div style='clear:both;'></div>";
         content += `<div class='divc' style='width:200px; font-weight:bold;'>${CSlang[2][CSI18n]}</div>`;
@@ -1547,16 +1507,13 @@ const dashStyles = [
         content += `<div class='divll' style='width:75px;font-weight:bold;'>${CSlang[3][CSI18n]} </div>`;
         content += "</div>";
 
-        content += `<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfColor' class='btn dropdown-toggle' style='background-color:${WMECSpeeds.speedColors.Others};' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: auto; margin: 0; padding: 0; min-width: 90px;'>`;
+        content += `<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfColor' class='btn dropdown-toggle' style='background-color:${WMECSpeeds.speedColors?.Others};' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: auto; margin: 0; padding: 0; min-width: 90px;'>`;
         for (let i = 0; colors[i]; ++i) {
-            let test = colors[i].match(/\(/) ? true : false;
-            switch (test) {
-                case true:
-                    content += "<li style='background-color:rgb" + colors[i] + "'>&nbsp;</li>";
-                    break;
-                case false:
-                    content += "<li style='background-color:" + colors[i] + "'>&nbsp;</li>";
-                    break;
+            if (colors[i].match(/\(/)) {
+                content += `<li style='background-color:rgb${colors[i]}'>&nbsp;</li>`;
+            }
+            else {
+                content += `<li style='background-color:${colors[i]}'>&nbsp;</li>`;
             }
         }
         content += "</ul></div>";
@@ -1603,10 +1560,10 @@ const dashStyles = [
         // content += "<div class='divc' style='width:270px; font-weight:bold;'><button id='OkButton'>Ok</button></div>";
         content += "</div>";
 
-        newspeedColorDialog.innerHTML = content;
+        newspeedColorDialog.html(content);
         // document.body.appendChild(newspeedColorDialog);
         // CSpeedshandleClass2.appendChild(newspeedColorDialog);
-        getId("tab-colorspeeds").appendChild(newspeedColorDialog);
+        $("#tab-colorspeeds").append(newspeedColorDialog);
     }
 
     // *************
@@ -1614,7 +1571,7 @@ const dashStyles = [
     // *************
 
     async function createTab() {
-        const { tabLabel, tabPane } = W.userscripts.registerSidebarTab("ColorSpeeds");
+        // const { tabLabel, tabPane } = W.userscripts.registerSidebarTab("ColorSpeeds");
         if (debug) log("Starting tab creation");
         const labelText = $("<div>")
             .append(
@@ -1626,189 +1583,263 @@ const dashStyles = [
             )
             .html();
 
-        tabLabel.innerHTML = labelText;
+        function _getCountryOptions(): string {
+            let content = "";
+            if (WMECSpeeds.speedColors !== undefined) {
+                Object.keys(WMECSpeeds.speedColors.Countries).forEach((country) => {
+                    content += `<option value='${country}'>${country.replace(/_/g, " ")}</option>`;
+                });
+            }
+            return content;
+        }
 
+        function _getStateOptions(): string {
+            let content = "";
+            if (WMECSpeeds.speedColors !== undefined) {
+                Object.keys(WMECSpeeds.speedColors?.US).forEach((state) => {
+                    content += `<option value='${state}'>${state.replace(/_/g, " ")}</option>`;
+                });
+            }
+            return content;
+        }
         // colorspeeds header
-        let content = `<div style='float:left; margin-left:5px;'><b><a href='https://greasyfork.org/scripts/14044-wme-color-speeds' target='_blank'><u>WME Color Speeds</u></a></b> v${currentVersion}</div>`;
-        content += "<div id='colorspeedsDiv'>";
-
-        // Countries pallete
-        content += "<div style='clear:both; padding-top:10px;'></div>";
-        content += `<div class='divStateChoise' id='countrieChoise' style='display:block;'><input type='checkbox' class='CScheck' id='cbPaletteByCountrie'><div class='divl CScheckLabel' style='width:210px;'>${CSlang[19][CSI18n]}</div>`;
-        content += "<div style='clear:both; padding-top:10px;'></div>"; // Couleurs pour </div>";
-        content += "<select id='selectCountrie' style='height:22px; width:250px; active:none;'>";
-        Object.keys(WMECSpeeds.speedColors.Countries).forEach((countrie) => {
-            content += `<option value='${countrie}'>${countrie.replace(/_/g, " ")}</option>`;
-        });
-        content += "</select></div>";
-
-        // Mutiple pallete
-        content += "<div style='clear:both; padding-top:10px;'></div>";
-        content += `<div class='divStateChoise' id='stateChoise' style='display:block;'><input type='checkbox' class='CScheck' id='cbMultiplePalette'><div class='divl CScheckLabel' style='width:210px;'>${CSlang[20][CSI18n]}</div>`;
-        content += "<div style='clear:both; padding-top:20px;'></div>"; // Couleurs pour </div>";
-        content += "<select id='selectState' style='height:22px; active:none;'>";
-        Object.keys(WMECSpeeds.speedColors.US).forEach((state) => {
-            content += `<option value='${state}'>${state.replace(/_/g, " ")}</option>`;
-        });
-        content += "</select></div>";
-
-        // Speed table header
-        content += "<div style='clear: both; padding-top:10px;'></div><div class='CScontent'>";
-        content += `<div class='divHeadline'><div class='divl' style='width:60px;'>${CSlang[32][CSI18n]}</div><div class='divr' id='unitvalue' style='width:45px;font-size:11px;line-height:20px;'>(${unit})</div><div class='divr' style='width:130px;'>${CSlang[33][CSI18n]}</div></div>`;
-
-        // Speed table
-        content += `<div class='divContent'><div class='divl speed' style='width:60px;'>${CSlang[7][CSI18n]}</div>`;
-        content += "<div class='divr' style='width:20px;'>&nbsp;</div>";
-        content += `<div class='divr' style='width:20px;'><a href='#'><img id='edit_others' style='width:16px;' title='${CSlang[8][CSI18n]}' src='data:image/png;base64,${iconEdit}' /></a></div>`;
-        content += `<div class='divr' style='width:120px;'><div id='color_others' class='divcolor' style='background-color:${WMECSpeeds.speedColors.Others};'>&nbsp;</div></div></div>`;
-        content += "<div id='CStable'></div></div><div id='divadd'></div>";
-
-        // Road type header
-        content += "<br><div style='clear:both; padding-top:10px;'></div><div class='CScontent'>";
-        content += `<div class='divHeadline'><div class='divl' style='width:120px;'>${CSlang[9][CSI18n]}</div><div class='divr' style='width:60px; margin-right:20px;'>${CSlang[10][CSI18n]}</div></div>`;
-        // edit zoom
-        content +=
-            "<div class='divContent' id='editzoom'><div class='divl speed' style='width:110px;'><span id='texttype'></span></div>";
-        content += `<div class='divr' style='width:20px;'><a href='#'><img id='cancelZoom' style='width:20px;' title='${CSlang[6][CSI18n]}' src='data:image/png;base64,${iconUndo}' /></a></div>`;
-        content += `<div class='divr' style='width:20px;'><a href='#'><img id='submitZoom' style='width:20px;' title='${CSlang[14][CSI18n]}' src='data:image/png;base64,${iconSubmit}' /></a></div>`;
-        content += "<div class='divr speed' style='width:60px;'><input type='text' value='' id='newvalzoom'/></div>";
-        content += "</div>";
-        content += "<div id='CSroadType'></div></div>";
-
-        // Offset Value
-        content += "<br><div style='clear:both; padding-top:10px;'></div>";
-        content += "<div class='divContentConf'>";
-        content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[15][CSI18n]}</div>`;
-        content += "<div style='clear:both; padding-top:2px;'></div>";
-        content +=
-            "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOffset' min='1' max='10' value='' pattern='[0-9]{2}'/></div>";
-        content +=
-            "<div class='divr'><input id='sliderOffset' type='range' max='10' min='1' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
-        content += "</div>";
-
-        // Opacity Value
-        content += "<div style='clear:both; padding-top:10px;'></div>";
-        content += "<div class='divContentConf'>";
-        content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[16][CSI18n]}</div>`;
-        content += "<div style='clear:both; padding-top:2px;'></div>";
-        content +=
-            "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOpacity' min='20' max='100' value='' pattern='[0-9]{3}'/></div>";
-        content +=
-            "<div class='divr'><input id='sliderOpacity' type='range' max='100' min='20'  step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
-        content += "</div>";
-
-        // Thickness Value
-        content += "<div style='clear:both; padding-top:10px;'></div>";
-        content += "<div class='divContentConf'>";
-        content += `<div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[17][CSI18n]}</div>`;
-        content += "<div style='clear:both; padding-top:2px;'></div>";
-        content +=
-            "<div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valThickness' min='2' max='10' value='' pattern='[0-9]{2}'/></div>";
-        content +=
-            "<div class='divr'><input id='sliderThickness' type='range' max='10' min='2' step='1' style='width:180px;height:24px;margin-right:20px;'></div>";
-        content += "</div>";
-
-        /*
-    // 2023-09-26 SS28 I haven't taken the time to see what is wrong here. Maybe we can resurrect it
-    // Dash Style
-    content += "<div class='divContentConf'>";
-    content += "<div style='clear:both; padding-top:10px;'></div>";
-    content += "<div class='divll' style='width:140px;font-weight:bold;color:#59899e;'>Dash Style:</div>";
-    content += "<div class='divl dropdown' style='width:90px; text-align:left;'><button id='ConfDash' class='btn dropdown-toggle' style='background-color:rgb(255,255,255);' type='button' data-toggle='dropdown'></button><ul class='dropdown-menu' style='height: 400px; overflow: scroll; margin: 0; padding: 0; min-width: 90px;'>";
-    for (let i = 0; i <= dashStyles.length; ++i) {
-        content += `<li>&nbsp;${dashStyles[i]}&nbsp;</li>`;
-    }
-    content += '</ul></div>';
-    content += '</div>';
-    */
-
-        tabPane.innerHTML = content;
-        tabPane.id = "tab-colorspeeds";
+        const $tabPane = $("<div>");
+        $tabPane.html = [
+            `<div id="tab-colorspeeds">
+                <div style='float:left; margin-left:5px;'><b><a href='https://greasyfork.org/scripts/14044-wme-color-speeds' target='_blank'><u>WME Color Speeds</u></a></b> v${currentVersion}</div>
+                <div id='colorspeedsDiv'>
+                    <div style='clear:both; padding-top:10px;'></div>
+                    <div class='divstateChoice' id='countryChoice' style='display:block;'><input type='checkbox' class='CScheck' id='cbPaletteByCountrie'><div class='divl CScheckLabel' style='width:210px;'>${CSlang[19][CSI18n]}</div>
+                    <div style='clear:both; padding-top:10px;'></div>
+                    <select id='selectCountry' style='height:22px; width:250px; active:none;'>
+                        ${_getCountryOptions()}
+                    </select>
+                </div>
+                <div>
+                    <div style='clear:both; padding-top:10px;'></div>
+                    <div class='divstateChoice' id='stateChoice' style='display:block;'><input type='checkbox' class='CScheck' id='cbMultiplePalette'><div class='divl CScheckLabel' style='width:210px;'>${CSlang[20][CSI18n]}</div>
+                    <div style='clear:both; padding-top:20px;'></div>
+                    <select id='selectState' style='height:22px; active:none;'>
+                        ${_getStateOptions()}
+                    </select>
+                </div>
+                <div style='clear: both; padding-top:10px;'></div>
+                <div class='CScontent'>
+                    <div class='divHeadline'>
+                        <div class='divl' style='width:60px;'>${CSlang[32][CSI18n]}</div>
+                        <div class='divr' id='unitvalue' style='width:45px;font-size:11px;line-height:20px;'>(${unit})</div>
+                        <div class='divr' style='width:130px;'>${CSlang[33][CSI18n]}</div>
+                    </div>
+                    <div class='divContent'>
+                        <div id="CSOtherSpeeds">
+                            <div class='divl speed' style='width:60px;'>${CSlang[7][CSI18n]}</div>
+                            <div class='divr' style='width:20px;'>&nbsp;</div>
+                            <div class='divr' style='width:20px;'>
+                                <a href='#'><img id='edit_others' style='width:16px;' title='${CSlang[8][CSI18n]}' src='data:image/png;base64,${iconEdit}' /></a>
+                            </div>
+                            <div class='divr' style='width:120px;'>
+                                <div id='color_others' class='divcolor' style='background-color:${WMECSpeeds.speedColors?.Others};'>&nbsp;</div>
+                            </div>
+                        </div>
+                        <div id='CStable'></div>
+                    </div>
+                    <div id='divadd'></div>
+                    <div style='clear:both; padding-top:10px;'></div>
+                </div>
+                <div class='CScontent'>
+                    <div class='divHeadline'>
+                        <div class='divl' style='width:120px;'>${CSlang[9][CSI18n]}</div>
+                        <div class='divr' style='width:60px; margin-right:20px;'>${CSlang[10][CSI18n]}</div>
+                    </div>
+                    <div class='divContent' id='editzoom'>
+                        <div class='divl speed' style='width:110px;'><span id='texttype'></span></div>
+                        <div class='divr' style='width:20px;'>
+                            <a href='#'><img id='cancelZoom' style='width:20px;' title='${CSlang[6][CSI18n]}' src='data:image/png;base64,${iconUndo}' /></a>
+                        </div>
+                        <div class='divr' style='width:20px;'>
+                            <a href='#'><img id='submitZoom' style='width:20px;' title='${CSlang[14][CSI18n]}' src='data:image/png;base64,${iconSubmit}' /></a>
+                        </div>
+                        <div class='divr speed' style='width:60px;'><input type='text' value='' id='newvalzoom'/></div>
+                    </div>
+                    <div id='CSroadType'></div>
+                </div>
+                <br><div style='clear:both; padding-top:10px;'></div>
+                <div class='divContentConf'>
+                    <div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[15][CSI18n]}</div>
+                    <div style='clear:both; padding-top:2px;'></div>
+                    <div class='divl valColor' style='width:80px; height:28px;'>
+                        <input type='number' id='valOffset' min='1' max='10' value='' pattern='[0-9]{2}'/>
+                    </div>
+                    <div class='divr'>
+                        <input id='sliderOffset' type='range' max='10' min='1' step='1' style='width:180px;height:24px;margin-right:20px;'>
+                    </div>
+                </div>
+                <div style='clear:both; padding-top:10px;'></div>
+                <div class='divContentConf'>
+                    <div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[16][CSI18n]}</div>
+                    <div style='clear:both; padding-top:2px;'></div>
+                    <div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valOpacity' min='20' max='100' value='' pattern='[0-9]{3}'/></div>
+                    <div class='divr'><input id='sliderOpacity' type='range' max='100' min='20'  step='1' style='width:180px;height:24px;margin-right:20px;'></div>
+                </div>
+                <div style='clear:both; padding-top:10px;'></div>
+                <div class='divContentConf'>
+                    <div class='divll' style='width:65px;font-weight:bold;color:#59899e;'>${CSlang[17][CSI18n]}</div>
+                    <div style='clear:both; padding-top:2px;'></div>
+                    <div class='divl valColor' style='width:80px; height:28px;'><input type='number' id='valThickness' min='2' max='10' value='' pattern='[0-9]{2}'/></div>
+                    <div class='divr'><input id='sliderThickness' type='range' max='10' min='2' step='1' style='width:180px;height:24px;margin-right:20px;'></div>
+                </div>
+            </div>
+            `,
+        ].join(" ");
 
         // Fix tab content div spacing.
         // $(tabPane).parent().css({ width: 'auto', padding: '4px' });
 
-        await W.userscripts.waitForElementConnected(tabPane);
-        if (debug) log("Tab loaded");
+        // await W.userscripts.waitForElementConnected(tabPane);
+        sdk.Sidebar.registerScriptTab().then((r) => {
+            r.tabLabel.innerHTML = labelText;
+            r.tabPane.innerHTML = $tabPane.html;
 
-        createNewSpeedColorDialog();
+            if (debug) log("Tab loaded");
 
-        getId("divadd").innerHTML +=
-            `<br/><center><input type='button' id='addbutton' name='add' value='${CSlang[4][CSI18n]}' /></center>`;
+            createNewSpeedColorDialog();
 
-        getId("addbutton").onclick = () => {
-            getId("Conf_Others").style.display = "none";
-            getId("Conf_Color").style.display = "block";
-            getId("colorspeedsDiv").style.display = "none";
-            getId("newspeed").value = "";
-            getId("ConfColor").style.backgroundColor = "#fff";
-            newspeedColorDialog.style.display = "block";
-            let c = getId("ConfColor").style.backgroundColor;
-            c = color2Rgb(c);
-            actualiseColorRGB(c);
-        };
+            $("#divadd").append(`<br/><center><input type='button' id='addbutton' name='add' value='${CSlang[4][CSI18n]}' /></center>`);
 
-        if (debug) log(`Country = ${getTopCountry().attributes.name}`);
+            $("#addbutton").on("click", () => {
+                $("#Conf_Others").css('display', "none");
+                $("#Conf_Color").css('display', "block");
+                $("#colorspeedsDiv").css('display', "none");
+                $("#newspeed").val("");
+                $("#ConfColor").css("backgroundColor", "#fff");
+                newspeedColorDialog.css("display", "block");
+                let c = $("#ConfColor").css("backgroundColor");
+                c = color2Rgb(c);
+                actualiseColorRGB(c);
+            });
 
-        getId("cbPaletteByCountrie").checked = WMECSpeeds.PaletteByCountrie;
-        getId("selectCountrie").style.display = WMECSpeeds.PaletteByCountrie ? "block" : "none";
+            if (debug) log(`Country = ${CSCountry?.name}`);
 
-        getId("stateChoise").style.display = getTopCountry().attributes.name === "United States" ? "block" : "none";
+            $("#cbPaletteByCountrie").checked = WMECSpeeds.PaletteByCountrie;
+            $("#selectCountry").css("display", WMECSpeeds.PaletteByCountrie ? "block" : "none");
 
-        if (WMECSpeeds.MultiplePalette === true) {
-            let index = 0;
-            const stateToSelect = getTopState().attributes.name.replace(/ /g, "_");
-            for (index; getId("selectState").options[index].value !== stateToSelect; index++) {
-                /* empty */
+            $("#stateChoice").css("display",CSCountry.name === "United States" ? "block" : "none");
+
+            if (WMECSpeeds.MultiplePalette) {
+                let index = 0;
+                const stateToSelect = CSTopState?.name.replace(/ /g, "_");
+                for (index; $("#selectState option").eq(index).val() !== stateToSelect; index++) {
+                    /* empty */
+                }
+                $("#selectState option").eq(index).prop("selected", true);
             }
-            getId("selectState").options[index].selected = true;
-        }
 
-        getId("valOffset").value = WMECSpeeds.offsetValue;
-        getId("sliderOffset").value = WMECSpeeds.offsetValue;
+            if(WMECSpeeds.offsetValue) 
+            {
+                $("#valOffset").val(WMECSpeeds.offsetValue);
+                $("#sliderOffset").val(WMECSpeeds.offsetValue);
+            }
+            else
+            { 
+                $("#valOffset").val(0);
+                $("#sliderOffset").val(0);
+            }
 
-        getId("valOpacity").value = Number(WMECSpeeds.opacityValue * 100).toFixed(0);
-        getId("sliderOpacity").value = Number(WMECSpeeds.opacityValue * 100).toFixed(0);
+            if(WMECSpeeds.opacityValue) {
+                $("#valOpacity").val(Number(WMECSpeeds.opacityValue * 100).toFixed(0));
+                $("#sliderOpacity").val(Number(WMECSpeeds.opacityValue * 100).toFixed(0));
+            }
 
-        getId("valThickness").value = WMECSpeeds.thicknessValue;
-        getId("sliderThickness").value = WMECSpeeds.thicknessValue;
+            if(WMECSpeeds.thicknessValue) {
+                $("#valThickness").val(WMECSpeeds.thicknessValue);
+                $("#sliderThickness").val(WMECSpeeds.thicknessValue);
+            }
 
-        LoadSettings();
+            LoadSettings();
 
-        eventRegister();
+            eventRegister();
 
-        SCColor();
+            SCColor();
+        });
     }
 
     function eventRegister() {
-        CSpeedsWaze.selectionManager.events.register("selectionchanged", null, SCColor);
-        CSpeedsModel.actionManager.events.register("afterclearactions", null, SCColor);
-        CSpeedsModel.actionManager.events.register("afterundoaction", null, SCColor);
-        CSpeedsMap.olMap.events.register("zoomend", null, SCColor);
-        CSpeedsMap.olMap.events.register("moveend", null, SCColor);
+        // CSpeedsWaze.selectionManager.events.register("selectionchanged", null, SCColor);
+        // CSpeedsModel.actionManager.events.register("afterclearactions", null, SCColor);
+        // CSpeedsModel.actionManager.events.register("afterundoaction", null, SCColor);
+        // CSpeedsMap.olMap.events.register("zoomend", null, SCColor);
+        // CSpeedsMap.olMap.events.register("moveend", null, SCColor);
 
-        CSpeedsModel.events.register("mergeend", null, SCColor);
-        window.addEventListener("beforeunload", saveOption, false);
+        // CSpeedsModel.events.register("mergeend", null, SCColor);
+        sdk.Events.on({
+            eventName: "wme-selection-changed",
+            eventHandler: SCColor,
+        });
+        sdk.Events.on({
+            eventName: "wme-after-redo-clear",
+            eventHandler: SCColor,
+        });
+        sdk.Events.on({
+            eventName: "wme-after-undo",
+            eventHandler: SCColor,
+        });
+        sdk.Events.on({
+            eventName: "wme-map-zoom-changed",
+            eventHandler: SCColor,
+        });
+        sdk.Events.on({
+            eventName: "wme-map-move-end",
+            eventHandler: SCColor,
+        });
+        sdk.Events.on({
+            eventName: "wme-map-data-loaded",
+            eventHandler: SCColor,
+        });
+        unsafeWindow.addEventListener("beforeunload", saveOption, false);
     }
 
     function eventUnRegister() {
-        CSpeedsWaze.selectionManager.events.unregister("selectionchanged", null, SCColor);
-        CSpeedsModel.actionManager.events.unregister("afterclearactions", null, SCColor);
-        CSpeedsModel.actionManager.events.unregister("afterundoaction", null, SCColor);
-        CSpeedsMap.olMap.events.unregister("zoomend", null, SCColor);
-        CSpeedsMap.olMap.events.unregister("moveend", null, SCColor);
-        CSpeedsModel.events.unregister("mergeend", null, SCColor);
-        window.removeEventListener("beforeunload", saveOption, false);
+        // CSpeedsWaze.selectionManager.events.unregister("selectionchanged", null, SCColor);
+        // CSpeedsModel.actionManager.events.unregister("afterclearactions", null, SCColor);
+        // CSpeedsModel.actionManager.events.unregister("afterundoaction", null, SCColor);
+        // CSpeedsMap.olMap.events.unregister("zoomend", null, SCColor);
+        // CSpeedsMap.olMap.events.unregister("moveend", null, SCColor);
+        // CSpeedsModel.events.unregister("mergeend", null, SCColor);
+        sdk.Events.off({
+            eventName: "wme-selection-changed",
+            eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-after-redo-clear",
+            eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-after-undo",
+            eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-map-zoom-changed",
+            eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-map-move-end",
+            eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-map-data-loaded",
+            eventHandler: SCColor,
+        });
+        unsafeWindow.removeEventListener("beforeunload", saveOption, false);
     }
 
     function LoadSettings() {
-        getId("cbPaletteByCountrie").checked = WMECSpeeds.PaletteByCountrie;
-        getId("selectCountrie").style.display = WMECSpeeds.PaletteByCountrie ? "block" : "none";
+        $("#cbPaletteByCountrie").prop("checked", WMECSpeeds.PaletteByCountrie);
+        $("#selectCountry").css("display", WMECSpeeds.PaletteByCountrie ? "block" : "none");
 
-        getId("cbMultiplePalette").checked = WMECSpeeds.MultiplePalette;
-        getId("selectState").style.display = WMECSpeeds.MultiplePalette ? "block" : "none";
+        $("#cbMultiplePalette").prop("checked", WMECSpeeds.MultiplePalette);
+        $("#selectState").css("display", WMECSpeeds.MultiplePalette ? "block" : "none");
 
-        if (WMECSpeeds.MultiplePalette === false && WMECSpeeds.PaletteByCountrie === false) {
+        if (!WMECSpeeds.MultiplePalette && !WMECSpeeds.PaletteByCountrie) {
             Object.keys(WMECSpeeds.speedColors[unit]).forEach((valSpeed) => {
                 const color = WMECSpeeds.speedColors[unit][valSpeed];
                 const div = document.createElement("div");
@@ -1849,17 +1880,17 @@ const dashStyles = [
                 divcolor.innerHTML = `<div class='divcolor' style='background-color:${color};'>&nbsp;</div>`;
                 div.appendChild(divcolor);
 
-                getId("CStable").appendChild(div);
+                $("#CStable").append(div);
             });
 
             // log("LoadSettings WMECSpeeds.speedColors."+unit+" = ",WMECSpeeds.speedColors[unit]);
         }
-        if (WMECSpeeds.MultiplePalette === true && WMECSpeeds.PaletteByCountrie === false) {
-            selectedState = getId("selectState").options[getId("selectState").selectedIndex].value;
+        if (WMECSpeeds.MultiplePalette && !WMECSpeeds.PaletteByCountrie) {
+            selectedState = $("#selectState").val();
             if (debug) log("selectedState = ", selectedState);
 
             if (WMECSpeeds.speedColors.US[selectedState][unit] === undefined) {
-                WMECSpeeds.speedColors.US[selectedState][unit] = cloneObj(WMECSpeeds.speedColors[unit]);
+                WMECSpeeds.speedColors.US[selectedState][unit] = structuredClone(WMECSpeeds.speedColors[unit]);
             }
 
             Object.keys(WMECSpeeds.speedColors.US[selectedState][unit]).forEach((valSpeed) => {
@@ -1898,7 +1929,7 @@ const dashStyles = [
                 divcolor.style.width = "120px";
                 divcolor.innerHTML = `<div class='divcolor' style='background-color:${color};'>&nbsp;</div>`;
                 div.appendChild(divcolor);
-                getId("CStable").appendChild(div);
+                $("#CStable").append(div);
             });
             if (debug)
                 log(
@@ -1907,20 +1938,21 @@ const dashStyles = [
                 );
         }
 
-        if (WMECSpeeds.PaletteByCountrie === true && WMECSpeeds.MultiplePalette === false) {
-            if (getId("selectCountrie").options[getId("selectCountrie").selectedIndex] !== undefined) {
-                selectedCountry = getId("selectCountrie").options[getId("selectCountrie").selectedIndex].value;
-            } else selectedCountry = getTopCountry().attributes.name.replace(/ /g, "_");
+        if (WMECSpeeds.PaletteByCountrie && !WMECSpeeds.MultiplePalette) {
+            if ($("#selectCountry").val() !== undefined) {
+                selectedCountry = $("#selectCountry").val();
+            } else selectedCountry = CSCountry.name.replace(/ /g, "_");
 
-            log("selectCountrie = ", selectedCountry);
+            log("selectCountry = ", selectedCountry);
 
             if (
+                WMECSpeeds.speedColors === undefined ||
                 WMECSpeeds.speedColors.Countries[selectedCountry] === undefined ||
                 WMECSpeeds.speedColors.Countries[selectedCountry][unit] === undefined
             ) {
                 WMECSpeeds.speedColors.Countries[selectedCountry] = {};
-                WMECSpeeds.speedColors.Countries[selectedCountry][unit] = cloneObj(WMECSpeeds.speedColors[unit]);
-                updateCountrieList();
+                WMECSpeeds.speedColors.Countries[selectedCountry][unit] = structuredClone(WMECSpeeds.speedColors[unit]);
+                updateCountriesList();
                 // log("LoadSettings création WMECSpeeds.speedColors.Countries."+selectedCountrie+"."+unit+" = ",WMECSpeeds.speedColors.Countries[selectedCountrie][unit]);
             }
 
@@ -1961,7 +1993,7 @@ const dashStyles = [
                 divcolor.style.width = "120px";
                 divcolor.innerHTML = `<div class='divcolor' style='background-color:${color};'>&nbsp;</div>`;
                 div.appendChild(divcolor);
-                getId("CStable").appendChild(div);
+                $("#CStable").append(div);
             });
 
             // log("LoadSettings WMECSpeeds.speedColors.Countries."+selectedCountrie+"."+unit+" = ",WMECSpeeds.speedColors.Countries[selectedCountrie][unit]);
@@ -2052,30 +2084,30 @@ const dashStyles = [
                 div.appendChild(divtype);
             }
 
-            getId("CSroadType").appendChild(div);
-            getId(`cbRoad${type}`).checked = WMECSpeeds.typeOfRoad[type].checked;
+            $("#CSroadType").append(div);
+            $(`#cbRoad${type}`).prop("checked", WMECSpeeds.typeOfRoad[type].checked);
             // getId(`cbRoad${type}`).style.marginLeft = '2px';
             // getId(`cbRoad${type}`).style.marginTop = '2px';
             // getId(`cbRoad${type}`).style.width = '15px';
             // getId(`cbRoad${type}`).style.height = '15px';
 
-            getId(`cbRoad${type}`).onclick = () => {
+            $(`#cbRoad${type}`).on("click", () => {
                 SCColor();
-            };
+            });
         }
         if (debug) log("Settings Loaded");
         setupHandler();
     }
 
     function setupHandler() {
-        let rgb = {
+        let rgb: RGB = {
             r: 0,
             g: 0,
             b: 0,
             name: null,
         };
-        const listeDelSpeed = getId("CStable");
-        const btnDelSpeed = getElementsByClassName("delSpeed", listeDelSpeed);
+        const listeDelSpeed = $("#CStable");
+        const btnDelSpeed = listeDelSpeed.find(".delSpeed");
 
         for (let i = 0; i < btnDelSpeed.length; i++) {
             const target = btnDelSpeed[i];
@@ -2083,8 +2115,8 @@ const dashStyles = [
             target.onclick = getFunctionWithArgs(SCSpeeds, [unit, index, selectedState, selectedCountry]);
         }
 
-        const listeEditZoom = getId("CSroadType");
-        const btnEditZoom = getElementsByClassName("modifyZoom", listeEditZoom);
+        const listeEditZoom = $("#CSroadType");
+        const btnEditZoom = listeEditZoom.find(".modifyZoom");
 
         for (let i = 0; i < btnEditZoom.length; i++) {
             const target = btnEditZoom[i];
@@ -2093,71 +2125,70 @@ const dashStyles = [
             target.onclick = getFunctionWithArgs(SCEditZoom, [index, val]);
         }
 
-        getId("cbPaletteByCountrie").onclick = () => {
-            getId("selectCountrie").style.display = getId("cbPaletteByCountrie").checked ? "block" : "none";
-            WMECSpeeds.PaletteByCountrie = getId("cbPaletteByCountrie").checked;
+        $("#cbPaletteByCountrie").on("click", function()  {
+            $("#selectCountry").css("display", (this as HTMLInputElement).checked ? "block" : "none");
+            WMECSpeeds.PaletteByCountrie = (this as HTMLInputElement).checked;
             WMECSpeeds.MultiplePalette = false;
-            updateCountrieList();
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+            updateCountriesList();
+            $("#CStable").html("");
+            $("CSroadType").html("");
             LoadSettings();
             SCColor();
-        };
-        getId("selectCountrie").onclick = () => {
-            updateCountrieList();
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+        });
+        $("#selectCountry").on("click", () => {
+            updateCountriesList();
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
-        };
+        });
 
-        getId("cbMultiplePalette").onclick = () => {
-            getId("selectState").style.display = getId("cbMultiplePalette").checked ? "block" : "none";
-            WMECSpeeds.MultiplePalette = getId("cbMultiplePalette").checked;
+        $("#cbMultiplePalette").on("click", function () {
+            $("#selectState").css("display", ($(this)[0] as HTMLInputElement).checked ? "block" : "none");
+            WMECSpeeds.MultiplePalette = ($(this)[0] as HTMLInputElement).checked;
             WMECSpeeds.PaletteByCountrie = false;
             if (WMECSpeeds.MultiplePalette === true) {
-                const stateToSelect = getTopState().attributes.name.replace(/ /g, "_");
-                let index;
-                for (index = 0; getId("selectState").options[index].value !== stateToSelect; index++) {
+                const stateToSelect = CSTopState?.name.replace(/ /g, "_");
+                for (let _index = 0; $("#selectState").val() !== stateToSelect; _index++) {
                     /* empty */
                 }
-                getId("selectState").options[index].selected = true;
+                $("#selectState option").eq(index).prop("selected", true);
             }
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
             SCColor();
-        };
+        });
 
-        getId("selectState").onclick = () => {
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+        $("#selectState").on("click", () => {
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
-        };
+        });
 
-        getId("edit_others").onclick = () => {
-            getId("Conf_Others").style.display = "block";
-            getId("Conf_Color").style.display = "none";
-            getId("colorspeedsDiv").style.display = "none";
-            getId("newspeed").value = null;
-            getId("ConfColor").style.backgroundColor = WMECSpeeds.speedColors.Others;
-            getId("newspeedColorDialog").style.display = "block";
+        $("#edit_others").on("click", () => {
+            $("#Conf_Others").css("display","block");
+            $("#Conf_Color").css("display", "none");
+            $("#colorspeedsDiv").css("display","none");
+            $("#newspeed").val("");
+            $("#ConfColor").css("backgroundColor", WMECSpeeds.speedColors.Others);
+            $("#newspeedColorDialog").css("display","block");
             rgb = color2Rgb(WMECSpeeds.speedColors.Others);
             actualiseColorRGB(rgb);
-        };
+        });
 
-        getId("cancel").onclick = () => {
-            getId("Conf_Others").style.display = "none";
-            getId("Conf_Color").style.display = "none";
-            getId("newspeedColorDialog").style.display = "none";
-            getId("colorspeedsDiv").style.display = "block";
-            getId("newspeed").value = "";
-        };
+        $("#cancel").on("click", () => {
+            $("Conf_Others").css("display", "none");
+            $("Conf_Color").css("display","none");
+            $("newspeedColorDialog").css("display", "none");
+            $("colorspeedsDiv").css("display", "block");
+            $("newspeed").val("");
+        });
 
-        getId("submit").onclick = () => {
-            let newSpeed = getId("newspeed").value;
-            let newColor = getId("ConfColor").style.backgroundColor;
+        $("#submit").on("click", () => {
+            let newSpeed = $("#newspeed").val();
+            let newColor = $("#ConfColor").prop("backgroundColor");
             // log("newSpeed = ", newSpeed);log("newColor = ", newColor);
-            if (getId("Conf_Color").style.display === "block" && newSpeed && newColor) {
+            if ($("#Conf_Color").css("display") === "block" && newSpeed && newColor) {
                 if (WMECSpeeds.MultiplePalette === true) {
                     WMECSpeeds.speedColors.US[selectedState][unit][newSpeed] = newColor;
                 } else if (WMECSpeeds.PaletteByCountrie === true) {
@@ -2166,203 +2197,209 @@ const dashStyles = [
                     WMECSpeeds.speedColors[unit][newSpeed] = newColor;
                 }
             }
-            if (getId("Conf_Others").style.display === "block" && newColor) {
+            if ($("#Conf_Others").css("display") === "block" && newColor) {
                 WMECSpeeds.speedColors.Others = newColor;
-                getId("color_others").style.backgroundColor = WMECSpeeds.speedColors.Others;
+                $("#color_others").css("backgroundColor", WMECSpeeds.speedColors.Others);
             }
-            getId("newspeed").value = "";
+            $("#newspeed").val("");
             newSpeed = null;
             newColor = null;
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
-            getId("Conf_Others").style.display = "none";
-            getId("Conf_Color").style.display = "none";
-            getId("newspeedColorDialog").style.display = "none";
-            getId("colorspeedsDiv").style.display = "block";
+            $("#CStable").html("");
+            $("#CSroadType").html("");
+            $("#Conf_Others").css("display", "none");
+            $("#Conf_Color").css("display","none");
+            $("#newspeedColorDialog").css("display","none");
+            $("#colorspeedsDiv").css("display", "block");
             LoadSettings();
             SCColor();
-        };
+        });
 
         $("#ConfColor.dropdown-toggle").dropdown();
-        $("#ConfColor+.dropdown-menu li").click(function () {
-            getId("ConfColor").style.backgroundColor = this.style.backgroundColor;
+        $("#ConfColor+.dropdown-menu li").on("click", function () {
+            $("#ConfColor").css("backgroundColor", this.style.backgroundColor);
             rgb = color2Rgb(this.style.backgroundColor);
             actualiseColorRGB(rgb);
         });
-        /*
-  $("#ConfDash.dropdown-toggle").dropdown();
-  $('#ConfDash+.dropdown-menu li').click(function(){
-      getId('ConfDash').text=this.text;
-  });
-  */
-        getId("sliderRed").onmousemove = () => {
-            getId("valRed").value = getId("sliderRed").value;
-            rgb.r = getId("valRed").value;
-            rgb.g = getId("valGreen").value;
-            rgb.b = getId("valBlue").value;
-            rgb = color2Rgb(Rgb2String(rgb));
-            actualiseColorRGB(rgb);
-        };
-        getId("sliderGreen").onmousemove = () => {
-            getId("valGreen").value = getId("sliderGreen").value;
-            rgb.r = getId("valRed").value;
-            rgb.g = getId("valGreen").value;
-            rgb.b = getId("valBlue").value;
-            rgb = color2Rgb(Rgb2String(rgb));
-            actualiseColorRGB(rgb);
-        };
-        getId("sliderBlue").onmousemove = () => {
-            getId("valBlue").value = getId("sliderBlue").value;
-            rgb.r = getId("valRed").value;
-            rgb.g = getId("valGreen").value;
-            rgb.b = getId("valBlue").value;
-            rgb = color2Rgb(Rgb2String(rgb));
-            actualiseColorRGB(rgb);
-        };
-        getId("sliderOffset").onmousemove = () => {
-            WMECSpeeds.offsetValue = getId("sliderOffset").value;
-            getId("valOffset").value = getId("sliderOffset").value;
-            SCColor();
-        };
-        getId("sliderOpacity").onmousemove = () => {
-            WMECSpeeds.opacityValue = Number(getId("sliderOpacity").value / 100).toFixed(2);
-            getId("valOpacity").value = getId("sliderOpacity").value;
-            SCColor();
-        };
-        getId("sliderThickness").onmousemove = () => {
-            WMECSpeeds.thicknessValue = getId("sliderThickness").value;
-            getId("valThickness").value = getId("sliderThickness").value;
-            SCColor();
-        };
 
-        getId("valRed").onchange = () => {
-            const R = parseInt(getId("valRed").value, 10);
+        $("#sliderRed").on("mousemove", () => {
+            $("#valRed").val($("#sliderRed").val());
+            rgb.r = $("#valRed").val();
+            rgb.g = $("#valGreen").val();
+            rgb.b = $("#valBlue").val();
+            rgb = color2Rgb(Rgb2String(rgb));
+            actualiseColorRGB(rgb);
+        });
+        $("#sliderGreen").on("mousemove", function() {
+            $("#valGreen").val(this.val());
+            rgb.r = $("#valRed").val();
+            rgb.g = $("#valGreen").val();
+            rgb.b = $("#valBlue").val();
+            rgb = color2Rgb(Rgb2String(rgb));
+            actualiseColorRGB(rgb);
+        });
+        $("#sliderBlue").on("mousemove", function() {
+            $("#valBlue").val(this.val());
+            rgb.r = $("#valRed").val();
+            rgb.g = $("#valGreen").val();
+            rgb.b = $("#valBlue").val();
+            rgb = color2Rgb(Rgb2String(rgb));
+            actualiseColorRGB(rgb);
+        });
+        $("#sliderOffset").on("mousemove", function() {
+            WMECSpeeds.offsetValue = this.value;
+            $("#valOffset").val(this.value);
+            SCColor();
+        });
+        $("#sliderOpacity").on("mousemove", function() {
+            WMECSpeeds.opacityValue = Number(this.val()/ 100).toFixed(2);
+            $("#valOpacity").val(this.val());
+            SCColor();
+        });
+        $("#sliderThickness").on("mousemove", function() {
+            WMECSpeeds.thicknessValue = this.value;
+            $("#valThickness").val(this.value);
+            SCColor();
+        });
+
+        $("#valRed").on("change", function() {
+            const R = parseInt(this.value, 10);
             if (R >= 0 && R <= 255) {
-                getId("sliderRed").value = getId("valRed").value;
-                rgb.r = getId("valRed").value;
-                rgb.g = getId("valGreen").value;
-                rgb.b = getId("valBlue").value;
+                $("#sliderRed").val(this.value);
+                rgb.r = this.val();
+                rgb.g = $("#valGreen").val();
+                rgb.b = $("#valBlue").val();
                 rgb = color2Rgb(Rgb2String(rgb));
                 actualiseColorRGB(rgb);
             } else {
-                getId("valRed").value = getId("sliderRed").value;
+                this.val($("#sliderRed").val());
             }
-        };
+        });
 
-        getId("valGreen").onchange = () => {
-            const G = parseInt(getId("valGreen").value, 10);
+        $("#valGreen").on("change", function() {
+            const G = parseInt(this.value, 10);
             if (G >= 0 && G <= 255) {
-                getId("sliderGreen").value = getId("valGreen").value;
-                rgb.r = getId("valRed").value;
-                rgb.g = getId("valGreen").value;
-                rgb.b = getId("valBlue").value;
+                $("#sliderGreen").val($("#valGreen").val());
+                rgb.r = $("#valRed").val();
+                rgb.g = this.val();
+                rgb.b = $("#valBlue").val();
                 rgb = color2Rgb(Rgb2String(rgb));
                 actualiseColorRGB(rgb);
             } else {
-                getId("valGreen").value = getId("sliderGreen").value;
+                this.val($("#sliderGreen").val());
             }
-        };
-        getId("valBlue").onchange = () => {
-            const B = parseInt(getId("valBlue").value, 10);
+        });
+        $("#valBlue").on("change", function() {
+            const B = parseInt(this.value, 10);
             if (B >= 0 && B <= 255) {
-                getId("sliderBlue").value = getId("valBlue").value;
-                rgb.r = getId("valRed").value;
-                rgb.g = getId("valGreen").value;
-                rgb.b = getId("valBlue").value;
+                $("#sliderBlue").val(this.value);
+                rgb.r = $("#valRed").val();
+                rgb.g = $("#valGreen").val();
+                rgb.b = this.val();
                 rgb = color2Rgb(Rgb2String(rgb));
                 actualiseColorRGB(rgb);
             } else {
-                getId("valBlue").value = getId("sliderBlue").value;
+                this.val($("#sliderBlue").val());
             }
-        };
-        getId("valOffset").onchange = () => {
-            const R = parseInt(getId("valOffset").value, 10);
+        });
+        $("#valOffset").on("change", function() {
+            const R = parseInt(this.value, 10);
             if (R >= 1 && R <= 10) {
-                getId("sliderOffset").value = getId("valOffset").value;
-                WMECSpeeds.offsetValue = getId("valOffset").value;
+                $("#sliderOffset").val(this.val());
+                WMECSpeeds.offsetValue = this.val();
                 SCColor();
             } else {
-                getId("valOffset").value = getId("sliderOffset").value;
+                this.val($("#sliderOffset").val());
             }
-        };
-        getId("valOpacity").onchange = () => {
-            const R = parseInt(getId("valOpacity").value, 10);
+        });
+        $("#valOpacity").on("change", function() {
+            const R = parseInt(this.val(), 10);
             if (R >= 0 && R <= 100) {
-                getId("sliderOpacity").value = getId("valOpacity").value;
-                WMECSpeeds.opacityValue = Number(getId("valOpacity").value / 100).toFixed(2);
+                $("#sliderOpacity").val(this.val());
+                WMECSpeeds.opacityValue = Number(this.val() / 100).toFixed(2);
                 SCColor();
             } else {
-                getId("valOpacity").value = getId("sliderOpacity").value;
+                this.val($("#sliderOpacity").val());
             }
-        };
-        getId("valThickness").onchange = () => {
-            const R = parseInt(getId("valThickness").value, 10);
+        });
+        $("#valThickness").on("change", function() {
+            const R = parseInt(this.val(), 10);
             if (R >= 2 && R <= 10) {
-                getId("sliderThickness").value = getId("valThickness").value;
-                WMECSpeeds.thicknessValue = getId("valThickness").value;
+                $("#sliderThickness").val(this.val());
+                WMECSpeeds.thicknessValue = this.val();
                 SCColor();
             } else {
-                getId("valThickness").value = getId("sliderThickness").value;
+                this.val($("#sliderThickness").val());
             }
-        };
+        });
     }
 
-    function updateCountrieList() {
-        const selectCountrie = getId("selectCountrie");
+    function updateCountriesList() {
+        const selectCountry = $("#selectCountry");
         let current = null;
-        if (selectCountrie.selectedIndex >= 0) current = selectCountrie.options[selectCountrie.selectedIndex].value;
-        if (current === null) current = getTopCountry().attributes.name.replace(/ /g, "_");
+        if (selectCountry.prop("selectedIndex") >= 0) current = selectCountry.val();
+        if (current === null) current = CSCountry.name.replace(/ /g, "_");
 
-        selectCountrie.options.length = 0;
+        // selectCountry.options.length = 0;
 
-        for (var countrie in WMECSpeeds.speedColors.Countries) {
+        if( WMECSpeeds.speedColors?.Countries !== undefined && Object.keys(WMECSpeeds.speedColors.Countries).length > 0) {
+            for (let country in WMECSpeeds.speedColors?.Countries) {
+                // create option in select menu
+                if (country === undefined) country = CSCountry.name.replace(/ /g, "_");
+                const countrieOption = document.createElement("option");
+                const countrieText = document.createTextNode(country.replace(/_/g, " "));
+
+                if (current !== null && country === current) countrieOption.setAttribute("selected", true);
+                countrieOption.setAttribute("value", country);
+                countrieOption.appendChild(countrieText);
+                selectCountry.append(countrieOption);
+            }
+        } else {
             // create option in select menu
-            if (countrie === undefined) countrie = getTopCountry().attributes.name.replace(/ /g, "_");
-            var countrieOption = document.createElement("option");
-            var countrieText = document.createTextNode(countrie.replace(/_/g, " "));
-
-            if (current !== null && countrie == current) countrieOption.setAttribute("selected", true);
-            countrieOption.setAttribute("value", countrie);
+            const countrieOption = document.createElement("option");
+            const countrieText = document.createTextNode(CSCountry.name);
+            countrieOption.setAttribute("value", CSCountry.name.replace(/ /g, "_"));
             countrieOption.appendChild(countrieText);
-            selectCountrie.appendChild(countrieOption);
+            selectCountry.append(countrieOption);
         }
     }
 
     function CSModifCouleur(unit, id, color, state) {
-        getId("Conf_Others").style.display = "none";
-        getId("Conf_Color").style.display = "block";
-        getId("colorspeedsDiv").style.display = "none";
-        getId("newspeed").value = id;
-        getId("ConfColor").style.backgroundColor = color;
-        newspeedColorDialog.style.display = "block";
+        $("#Conf_Others").css("display", "none");
+        $("#Conf_Color").css("display", "block");
+        $("#colorspeedsDiv").css("display", "none");
+        $("#newspeed").val(id);
+        $("#ConfColor").css("backgroundColor", color);
+        newspeedColorDialog.css("display","block");
         const c = color2Rgb(color);
         actualiseColorRGB(c);
     }
 
     function actualiseColorRGB(c) {
         log("color: ", c);
-        getId("valRed").value = c.r;
-        getId("valGreen").value = c.g;
-        getId("valBlue").value = c.b;
+        $("#valRed").val(c.r);
+        $("#valGreen").val(c.g);
+        $("#valBlue").val(c.b);
 
-        getId("sliderRed").value = c.r;
-        getId("sliderGreen").value = c.g;
-        getId("sliderBlue").value = c.b;
-        getId("ConfColor").style.backgroundColor = Rgb2String(c);
-        getId("nameColor").innerHTML = c.name;
+        $("#sliderRed").val(c.r);
+        $("#sliderGreen").val(c.g);
+        $("#sliderBlue").val(c.b);
+        $("#ConfColor").css("backgroundColor", Rgb2String(c));
+        $("#nameColor").html(c.name);
     }
 
     function SCSpeeds(unit, idx, state, contrie) {
+        let answer: boolean;
+        
         if (WMECSpeeds.MultiplePalette === true) {
-            var answer = window.confirm(
-                CSlang[5][CSI18n] + " " + idx + " " + unit + " " + CSlang[21][CSI18n] + " " + state + " ?"
+            answer = unsafeWindow.confirm(
+                `${CSlang[5][CSI18n]} ${idx} ${unit} ${CSlang[21][CSI18n]} ${state} ?`
             );
         } else if (WMECSpeeds.PaletteByCountrie === true) {
-            var answer = window.confirm(
-                CSlang[5][CSI18n] + " " + idx + " " + unit + " " + CSlang[21][CSI18n] + " " + contrie + " ?"
+            answer = unsafeWindow.confirm(
+                `${CSlang[5][CSI18n]} ${idx} ${unit} ${CSlang[21][CSI18n]} ${contrie} ?`
             );
         } else {
-            var answer = window.confirm(CSlang[5][CSI18n] + " " + idx + " " + unit + " ?");
+            answer = unsafeWindow.confirm(`${CSlang[5][CSI18n]} ${idx} ${unit} ?`);
         }
 
         if (answer) {
@@ -2374,188 +2411,228 @@ const dashStyles = [
                 delete WMECSpeeds.speedColors[unit][idx];
             }
 
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
         }
     }
 
     function SCEditZoom(idx, val) {
-        getId("editzoom").style.display = "block";
-        getId("newvalzoom").value = val;
-        getId("texttype").textContent = WMECSpeeds.typeOfRoad[idx].name;
+        $("#editzoom").css("display", "block");
+        $("#newvalzoom").val(val);
+        $("#texttype").text(WMECSpeeds.typeOfRoad[idx].name);
 
-        getId("submitZoom").onclick = function () {
-            var newValZoom = getId("newvalzoom").value;
+        $("#submitZoom").on("click", function() {
+            var newValZoom = $("#newvalzoom").val();
             if (newValZoom) {
                 WMECSpeeds.typeOfRoad[idx].zoom = newValZoom;
             }
-            getId("editzoom").style.display = "none";
-            getId("newvalzoom").value = "";
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+            this.css("display", "none");
+            $("#newvalzoom").val("");
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
-        };
-        getId("cancelZoom").onclick = function () {
-            getId("editzoom").style.display = "none";
-            getId("newvalzoom").value = "";
-            getId("CStable").innerHTML = "";
-            getId("CSroadType").innerHTML = "";
+        });
+        $("#cancelZoom").on("click", () => {
+            $("#editzoom").css("display", "none");
+            $("#newvalzoom").val("");
+            $("#CStable").html("");
+            $("#CSroadType").html("");
             LoadSettings();
-        };
+        });
     }
 
-    function shiftGeometry(d, line, trigo) {
+    function shiftGeometry(d: number, line: GeoJSON.Position[], trigo: boolean) {
         // d=distance to shift, line=collection of OL points, trigo=boolean: true=left(trigo=CCW) false=right(CW) : fwd is CW, rev is trigo
         if (!trigo) d = -d;
 
-        function getOrthoVector(p1, p2) {
+        function getOrthoVector(p1: Pixel, p2: Pixel) {
             return [p1.y - p2.y, p2.x - p1.x];
         }
 
-        function normalizeVector(v) {
+        function normalizeVector(v: number[]) {
             if (v[0] * v[0] + v[1] * v[1] == 0) return v;
-            var l = Math.sqrt(v[0] * v[0] + v[1] * v[1]);
+            const l = Math.sqrt(v[0] * v[0] + v[1] * v[1]);
             return [v[0] / l, v[1] / l];
         }
 
-        var points = [];
-        for (var i = 0; i < line.length; i++) {
-            var vcount = 0;
+        const pixelPoints: Pixel[] = [];
+        for (const p of line) {
+            pixelPoints.push(sdk.Map.getPixelFromLonLat({ lonLat: { lon: p[0], lat: p[1] } }));
+        }
+        const points: GeoJSON.Position[] = [];
+        for (let i = 0; i < pixelPoints.length; i++) {
+            let vcount = 0;
             // compute orthogonal vectors:
-            var prevVector = [0, 0];
-            var nextVector = [0, 0];
+            let prevVector = [0, 0];
+            let nextVector = [0, 0];
             if (i > 0) {
                 // can compute prev
-                var p1 = line[i - 1];
-                var p2 = line[i];
+                const p1 = pixelPoints[i - 1];
+                const p2 = pixelPoints[i];
                 prevVector = getOrthoVector(p1, p2);
                 prevVector = normalizeVector(prevVector);
                 vcount++;
             }
-            if (i < line.length - 1) {
+            if (i < pixelPoints.length - 1) {
                 // can compute next
-                var p1 = line[i];
-                var p2 = line[i + 1];
+                const p1 = pixelPoints[i];
+                const p2 = pixelPoints[i + 1];
                 nextVector = getOrthoVector(p1, p2);
                 nextVector = normalizeVector(nextVector);
                 vcount++;
             }
             // sum vectors and normalize
-            var v = [0, 0];
-            if (vcount != 0) v = [(prevVector[0] + nextVector[0]) / vcount, (prevVector[1] + nextVector[1]) / vcount];
+            let v = [0, 0];
+            if (vcount !== 0) v = [(prevVector[0] + nextVector[0]) / vcount, (prevVector[1] + nextVector[1]) / vcount];
             //v=normalizeVector(v);
-            points.push(new CSpeedOpenLayers.Geometry.Point(line[i].x + v[0] * d, line[i].y + v[1] * d));
+            const newpos = sdk.Map.getLonLatFromPixel({
+                x: pixelPoints[i].x + v[0] * d,
+                y: pixelPoints[i].y + v[1] * d,
+            });
+            points.push([newpos.lon, newpos.lat]);
         }
         return points;
     }
 
     function SCColor() {
-        function getByID(obj, id) {
-            if (typeof obj.getObjectById == "function") {
-                return obj.getObjectById(id);
-            } else if (typeof obj.getObjectById == "undefined") {
-                return obj.get(id);
-            }
-        }
         //log('SCColor');
         try {
-            mapLayer.destroyFeatures();
+            sdk.Map.removeAllFeaturesFromLayer({ layerName: CSLayer.name });
         } catch (err) {
             log("err destroyFeatures: ", err);
         }
 
-        if (getTopCountry() === null) return;
+        if (CSCountry === null) return;
 
-        if (CSpeedsCountries !== undefined && /*CSpeedsCountries.top*/ getTopCountry() !== undefined) {
-            getId("stateChoise").style.display =
-                /*CSpeedsCountries.top*/ getTopCountry().attributes.name == "United States" ? "block" : "none";
-        }
-        var lineFeature = [];
+        $("#stateChoice").css("display", CSCountry.name === "United States" ? "block" : "none");
 
-        for (var i = 0; i < RoadToScan.length; ++i) {
-            var type = RoadToScan[i];
-            WMECSpeeds.typeOfRoad[type].checked = getId("cbRoad" + type).checked;
+        for (let i = 0; i < RoadToScan.length; ++i) {
+            const type = RoadToScan[i];
+            if (WMECSpeeds.typeOfRoad !== undefined)
+                WMECSpeeds.typeOfRoad[type].checked = $(`#cbRoad${type}`).checked;
         }
 
-        for (var seg in CSpeedsModel.segments.objects) {
-            var segment = getByID(CSpeedsModel.segments, seg);
-            var attributes = segment.attributes;
-            var roadType = attributes.roadType;
-            var roundabout = attributes.junctionID === null ? false : true;
-            var line = getId(segment.getOLGeometry().id);
-            var fwdspeed = attributes.fwdMaxSpeed;
-            var revspeed = attributes.revMaxSpeed;
-            var fwdspeedUnverified = attributes.fwdMaxSpeedUnverified;
-            var revspeedUnverified = attributes.revMaxSpeedUnverified;
-            var fwddir = attributes.fwdDirection;
-            var revdir = attributes.revDirection;
+        const selection = sdk.Editing.getSelection();
+        const segIds = new Set();
+        if (selection?.objectType === "segment") {
+            for (const id of selection.ids) {
+                segIds.add(id);
+            }
+        }
+        for (const seg of sdk.DataModel.Segments.getAll()) {
+            const roadType = seg.roadType;
+            const roundabout = seg.junctionId !== null;
+            let fwdspeed = seg.fwdSpeedLimit;
+            let revspeed = seg.revSpeedLimit;
+            // var fwdspeedUnverified = attributes.fwdMaxSpeedUnverified;
+            // var revspeedUnverified = attributes.revMaxSpeedUnverified;
+            // var fwddir = attributes.fwdDirection;
+            // var revdir = attributes.revDirection;
             //var fwdID = "",revID="";
-            var isSelected = segment.selected == true ? true : false;
-            var isModified = segment.state == "Update" ? true : false;
+            const isSelected = segIds.has(seg.id);
+            const isModified = false;
 
-            if (attributes.primaryStreetID === null || attributes.primaryStreetID === undefined) continue;
+            if (seg.primaryStreetId === null) {
+                continue;
+            }
+
+            // var cid = getByID(CSpeedsModel.streets, attributes.primaryStreetID)
+            // 	.attributes.cityID;
+            // var stateID = null;
+            // var countryID = null;
+
+            // if (
+            // 	getByID(CSpeedsModel.cities, cid) === null ||
+            // 	getByID(CSpeedsModel.cities, cid) === undefined
+            // ) {
+            // 	if (debug)
+            // 		log(
+            // 			"CSpeedsModel.cities.get(" + cid + ") =",
+            // 			getByID(CSpeedsModel.cities, cid),
+            // 		);
+            // 	continue;
+            // }
+
+            // stateID = getByID(CSpeedsModel.cities, cid).attributes.stateID;
+            // countryID = getByID(CSpeedsModel.cities, cid).attributes.countryID;
+
+            // var state = getByID(CSpeedsModel.states, stateID).attributes.name.replace(
+            // 	/ /g,
+            // 	"_",
+            // );
+            const segmentAddress = sdk.DataModel.Segments.getAddress({ segmentId: seg.id });
+            let country: string | undefined;
+            if (segmentAddress !== null) {
+                country = segmentAddress.country?.name.replace(/ /g, "_");
+            }
+            if (!country) {
+                let street = sdk.DataModel.Streets.getById({ streetId: seg.primaryStreetId });
+                if (street !== null) {
+                    let city: City | undefined | null;
+                    if (street.cityId !== null) {
+                        city = sdk.DataModel.Cities.getById({ cityId: street.cityId });
+                    } else {
+                        for (const sid of seg.alternateStreetIds) {
+                            street = sdk.DataModel.Streets.getById({ streetId: sid });
+                            if (street?.cityId) {
+                                city = sdk.DataModel.Cities.getById({ cityId: street.cityId });
+                                break;
+                            }
+                        }
+                    }
+                    if (!city || city === null) {
+                        log("Unable to get City for the Segment", seg.id);
+                        continue;
+                    }
+                    if (city?.countryId === undefined || city.countryId === null) {
+                        log("City doesn't have a country id: ", city?.name);
+                        continue;
+                    }
+                    const ctry = sdk.DataModel.Countries.getById({ countryId: city.countryId });
+                    country = ctry?.name.replace(/ /g, "_");
+                }
+            }
+            if (country === undefined || country === null) {
+                continue;
+            }
 
             if (
-                getByID(CSpeedsModel.streets, attributes.primaryStreetID) === null ||
-                getByID(CSpeedsModel.streets, attributes.primaryStreetID) === undefined
+                WMECSpeeds.PaletteByCountrie &&
+                WMECSpeeds.speedColors !== undefined &&
+                WMECSpeeds.speedColors.Countries[country] === undefined
             ) {
-                if (debug)
-                    log(
-                        "CSpeedsModel.streets.get(" + attributes.primaryStreetID + ") =",
-                        getByID(CSpeedsModel.streets, attributes.primaryStreetID)
-                    );
-                continue;
-            }
-
-            var cid = getByID(CSpeedsModel.streets, attributes.primaryStreetID).attributes.cityID;
-            var stateID = null;
-            var countryID = null;
-
-            if (getByID(CSpeedsModel.cities, cid) === null || getByID(CSpeedsModel.cities, cid) === undefined) {
-                if (debug) log("CSpeedsModel.cities.get(" + cid + ") =", getByID(CSpeedsModel.cities, cid));
-                continue;
-            }
-
-            stateID = getByID(CSpeedsModel.cities, cid).attributes.stateID;
-            countryID = getByID(CSpeedsModel.cities, cid).attributes.countryID;
-
-            var state = getByID(CSpeedsModel.states, stateID).attributes.name.replace(/ /g, "_");
-            var countrie = getByID(CSpeedsModel.countries, countryID).attributes.name.replace(/ /g, "_");
-
-            if (WMECSpeeds.PaletteByCountrie == true && WMECSpeeds.speedColors.Countries[countrie] === undefined) {
-                WMECSpeeds.speedColors.Countries[countrie] = {};
-                WMECSpeeds.speedColors.Countries[countrie][unit] = cloneObj(WMECSpeeds.speedColors[unit]);
-                updateCountrieList();
+                WMECSpeeds.speedColors.Countries[country][unit] = structuredClone(WMECSpeeds.speedColors[unit]);
+                updateCountriesList();
                 LoadSettings();
                 log(
-                    "SCColor WMECSpeeds.speedColors.Countries." + countrie + "." + unit + " = ",
-                    WMECSpeeds.speedColors.Countries[countrie][unit]
+                    `SCColor WMECSpeeds.speedColors.Countries.${country}.${unit} = `,
+                    WMECSpeeds.speedColors?.Countries[country][unit]
                 );
             }
 
             if (
-                WMECSpeeds.MultiplePalette == true &&
+                WMECSpeeds.MultiplePalette === true &&
                 WMECSpeeds.speedColors.US[state] !== undefined &&
                 WMECSpeeds.speedColors.US[state][unit] === undefined
             ) {
-                WMECSpeeds.speedColors.US[state][unit] = cloneObj(WMECSpeeds.speedColors[unit]);
+                WMECSpeeds.speedColors.US[state][unit] = structuredClone(WMECSpeeds.speedColors[unit]);
                 //log("SCColor WMECSpeeds.speedColors.US."+state+"."+unit+" = ",WMECSpeeds.speedColors.US[state][unit]);
             }
 
             // check that WME hasn't highlighted this segment
             if (isSelected || isModified) continue;
 
-            if (zoom != CSpeedsMap.olMap.zoom) {
-                zoom = CSpeedsMap.olMap.zoom;
+            if (zoom !== sdk.Map.getZoomLevel()) {
+                zoom = sdk.Map.getZoomLevel();
                 //log('zoom = ' + zoom + 'W.map.getResolution() = '+W.map.getResolution());
             }
-            var shiftValue = WMECSpeeds.offsetValue * W.map.getResolution();
+            const shiftValue = WMECSpeeds.offsetValue;
 
-            if (RoadToScan.indexOf(roadType) == -1) continue;
-            if (roundabout != false && WMECSpeeds.typeOfRoad["999"].checked == false) continue;
+            if (RoadToScan.indexOf(roadType) === -1) continue;
+            if (roundabout !== false && WMECSpeeds.typeOfRoad["999"].checked === false) continue;
 
-            if (unit == "mph") {
+            if (unit === "mph") {
                 fwdspeed = fwdspeed != null ? Math.trunc(fwdspeed * 0.625) : null;
                 revspeed = revspeed != null ? Math.trunc(revspeed * 0.625) : null;
             }
@@ -2566,154 +2643,115 @@ const dashStyles = [
             if (zoom < WMECSpeeds.typeOfRoad[roadType].zoom || !WMECSpeeds.typeOfRoad[roadType].checked) {
                 continue;
             }
-            WMECSpeeds.visibility = mapLayer.visibility;
+            WMECSpeeds.visibility = sdk.Map.isLayerVisible({ layerName: CSLayer.name });
 
             if (fwdspeed && WMECSpeeds.visibility) {
                 //Color for forward speed
-                var newWidth = "",
-                    newColor = "",
+                let newWidth: number | undefined,
+                    newColor: string | undefined,
                     newDashes = "",
-                    newOpacity = "";
+                    newOpacity: number | undefined;
 
-                if (WMECSpeeds.MultiplePalette === false && WMECSpeeds.PaletteByCountrie === false) {
-                    if (WMECSpeeds.speedColors[unit].hasOwnProperty(fwdspeed))
+                if (!WMECSpeeds.MultiplePalette && !WMECSpeeds.PaletteByCountrie) {
+                    if (WMECSpeeds.speedColors !== undefined && Object.hasOwn(WMECSpeeds.speedColors[unit], fwdspeed))
                         newColor = WMECSpeeds.speedColors[unit][fwdspeed];
-                } else if (WMECSpeeds.PaletteByCountrie === true) {
-                    if (WMECSpeeds.speedColors.Countries[countrie][unit].hasOwnProperty(fwdspeed))
-                        newColor = WMECSpeeds.speedColors.Countries[countrie][unit][fwdspeed];
-                } else if (WMECSpeeds.MultiplePalette === true && WMECSpeeds.speedColors.US[state] !== undefined) {
+                } else if (WMECSpeeds.PaletteByCountrie) {
+                    if (WMECSpeeds.speedColors?.Countries[country][unit].hasOwnProperty(fwdspeed))
+                        newColor = WMECSpeeds.speedColors.Countries[country][unit][fwdspeed];
+                } else if (WMECSpeeds.MultiplePalette && WMECSpeeds.speedColors?.US[state] !== undefined) {
                     if (WMECSpeeds.speedColors.US[state][unit].hasOwnProperty(fwdspeed))
                         newColor = WMECSpeeds.speedColors.US[state][unit][fwdspeed];
                 }
-                /*
-          if (newColor!=""){
-            //Dashes
-            if (fwddir==true && fwdspeed && !fwdspeedUnverified) { newWidth = 6; newOpacity = 0.8; newDashes = "5 10"; } // verified speed
-            else if (fwddir==true && fwdspeed && fwdspeedUnverified) { newColor = WMECSpeeds.speedColors.Others; newWidth = 4; newOpacity = 0.8; newDashes = "2 10";} // unverified speed
-          }else if (fwddir==true && fwdspeed) { newWidth = 4; newColor = WMECSpeeds.speedColors.Others; newOpacity = 0.9; newDashes = "5 5"; } // other
-          */
-                if (newColor != "") {
+                if (newColor !== undefined) {
                     //Dashes
-                    if (fwddir == true && fwdspeed && !fwdspeedUnverified) {
+                    if ((seg.isAtoB || seg.isTwoWay) && fwdspeed) {
                         newWidth = WMECSpeeds.thicknessValue;
                         newOpacity = WMECSpeeds.opacityValue;
                         newDashes = "5 10";
                     } // verified speed
-                    else if (fwddir == true && fwdspeed && fwdspeedUnverified) {
-                        newColor = WMECSpeeds.speedColors.Others;
-                        newWidth = WMECSpeeds.thicknessValue;
-                        newOpacity = 0.8;
-                        newDashes = "2 10";
-                    } // unverified speed
-                } else if (fwddir == true && fwdspeed) {
+                } else if ((seg.isAtoB || seg.isTwoWay) && fwdspeed) {
                     newWidth = WMECSpeeds.thicknessValue;
                     newColor = WMECSpeeds.speedColors.Others;
                     newOpacity = WMECSpeeds.opacityValue;
                     newDashes = "5 5";
                 } // other
 
-                if (newColor != "") {
-                    var style = {
-                        strokeColor: newColor,
-                        strokeOpacity: newOpacity,
-                        strokeWidth: newWidth,
-                        strokeDashstyle: newDashes,
-                    };
+                if (newColor !== undefined) {
+                    const points = shiftGeometry(shiftValue, seg.geometry.coordinates, CSCountry.isLeftHandTraffic);
 
-                    var points = [];
-                    var segID = attributes.id;
-                    points = shiftGeometry(
-                        shiftValue,
-                        segment.getOLGeometry().getVertices(),
-                        CSpeedsModel.getTopCountry().getAttribute("leftHandTraffic")
+                    const newline = turf.lineString(
+                        points,
+                        {
+                            styleName: "colorspeedsLineStyle",
+                            style: {
+                                strokeColor: newColor,
+                                strokeOpacity: newOpacity,
+                                strokeWidth: newWidth,
+                                strokeDashstyle: newDashes,
+                            },
+                        },
+                        { id: `ColorSpeeds_${points.toString()}` }
                     );
-
-                    var newline = new CSpeedOpenLayers.Geometry.LineString(points);
-
-                    lineFeature.push(new CSpeedOpenLayers.Feature.Vector(newline, null, style));
+                    sdk.Map.addFeatureToLayer({ feature: newline, layerName: CSLayer.name });
                     //log("segment id: " + attributes.id + ' newColor: '+ newColor + ' segment.CSpeedsFwd.fwdColor: ' + segment.CSpeedsFwd.fwdColor + ' lineFeature: ',lineFeature);
                 }
             }
             if (revspeed && WMECSpeeds.visibility) {
                 //Color for reverse speed
-                var newWidth = "",
-                    newColor = "",
+                let newWidth: number | undefined,
+                    newColor: string | undefined,
                     newDashes = "",
-                    newOpacity = "",
-                    newDashOffset = "";
+                    newOpacity: number | undefined;
 
-                if (WMECSpeeds.MultiplePalette === false && WMECSpeeds.PaletteByCountrie === false) {
+                if (!WMECSpeeds.MultiplePalette && !WMECSpeeds.PaletteByCountrie) {
                     if (WMECSpeeds.speedColors[unit].hasOwnProperty(revspeed))
                         newColor = WMECSpeeds.speedColors[unit][revspeed];
-                } else if (WMECSpeeds.PaletteByCountrie === true) {
-                    if (WMECSpeeds.speedColors.Countries[countrie][unit].hasOwnProperty(revspeed))
-                        newColor = WMECSpeeds.speedColors.Countries[countrie][unit][revspeed];
-                } else if (WMECSpeeds.MultiplePalette === true && WMECSpeeds.speedColors.US[state] !== undefined) {
+                } else if (WMECSpeeds.PaletteByCountrie) {
+                    if (WMECSpeeds.speedColors.Countries[country][unit].hasOwnProperty(revspeed))
+                        newColor = WMECSpeeds.speedColors.Countries[country][unit][revspeed];
+                } else if (WMECSpeeds.MultiplePalette && WMECSpeeds.speedColors.US[state] !== undefined) {
                     if (WMECSpeeds.speedColors.US[state][unit].hasOwnProperty(revspeed))
                         newColor = WMECSpeeds.speedColors.US[state][unit][revspeed];
                 }
-                /*
-            if (newColor!=""){
-                //Dashes
-                if (revdir==true && revspeed && !revspeedUnverified) { newWidth = 6; newOpacity = 0.8; newDashes = "5 10"; } // verified speed
-                else if (revdir==true && revspeed && revspeedUnverified) { newColor = WMECSpeeds.speedColors.Others; newWidth = 4; newOpacity = 0.8; newDashes = "2 10";} // unverified speed
-            }else if (revdir==true && revspeed) { newWidth = 4; newColor = WMECSpeeds.speedColors.Others; newOpacity = 0.9; newDashes = "5 5"; } // other
-            */
-                if (newColor != "") {
+                if (newColor !== undefined) {
                     //Dashes
-                    if (revdir == true && revspeed && !revspeedUnverified) {
+                    if ((seg.isBtoA  || seg.isTwoWay) && revspeed) {
                         newWidth = WMECSpeeds.thicknessValue;
                         newOpacity = WMECSpeeds.opacityValue;
                         newDashes = "5 10";
-                    } // verified speed
-                    else if (revdir == true && revspeed && revspeedUnverified) {
-                        newColor = WMECSpeeds.speedColors.Others;
-                        newWidth = WMECSpeeds.thicknessValue;
-                        newOpacity = WMECSpeeds.opacityValue;
-                        newDashes = "2 10";
                     } // unverified speed
-                } else if (revdir == true && revspeed) {
+                } else if ((seg.isBtoA  || seg.isTwoWay) && revspeed) {
                     newWidth = WMECSpeeds.thicknessValue;
                     newColor = WMECSpeeds.speedColors.Others;
                     newOpacity = WMECSpeeds.opacityValue;
                     newDashes = "5 5";
                 } // other
 
-                if (newColor != "") {
-                    var style = {
-                        strokeColor: newColor,
-                        strokeOpacity: newOpacity,
-                        strokeWidth: newWidth,
-                        strokeDashstyle: newDashes,
-                    };
+                if (newColor !== undefined) {
+                    const points = shiftGeometry(shiftValue, seg.geometry.coordinates, !CSCountry.isLeftHandTraffic);
 
-                    var points = [];
-                    var segID = attributes.id;
-
-                    points = shiftGeometry(
-                        shiftValue,
-                        segment.getOLGeometry().getVertices(),
-                        !CSpeedsModel.getTopCountry().getAttribute("leftHandTraffic")
+                    const newline = turf.lineString(
+                        points,
+                        {
+                            styleName: "colorspeedsLineStyle",
+                            style: {
+                                strokeColor: newColor,
+                                strokeOpacity: newOpacity,
+                                strokeWidth: newWidth,
+                                strokeDashstyle: newDashes,
+                            },
+                        },
+                        { id: `ColorSpeeds_${points.toString()}` }
                     );
-
-                    var newline = new CSpeedOpenLayers.Geometry.LineString(points);
-
-                    lineFeature.push(new CSpeedOpenLayers.Feature.Vector(newline, null, style));
+                    sdk.Map.addFeatureToLayer({ feature: newline, layerName: CSLayer.name });
                 }
             }
         }
 
-        // log("lineFeature = ",lineFeature);
-        // Display new array of segments
-        try {
-            mapLayer.addFeatures(lineFeature);
-        } catch (err) {
-            log("err addFeatures: ", err);
-        }
         if (debug) log(`Total load time without WW of ${Math.round(performance.now() - scriptStartTime)} ms.`);
         if (debug) log(`Total load time with WW of ${Math.round(performance.now() - loadStartTime)} ms.`);
     }
 
     /* begin running the code! */
-    counterStart();
+    bootstrap();
 }
