@@ -3,7 +3,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2025.02.04.01
+// @version          2025.08.14.001
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -1895,6 +1895,9 @@ const dashStyles = [
             selectedState = $("#selectState").val();
             if (debug)
                 log("selectedState = ", selectedState);
+            if (selectedState === undefined) {
+                selectedState = CSTopState?.name.replace(/ /g, "_");
+            }
             if (WMECSpeeds.speedColors === undefined) {
                 WMECSpeeds.speedColors =
                     {
@@ -1904,6 +1907,9 @@ const dashStyles = [
                         mph: {},
                         kmh: {}
                     };
+            }
+            if (WMECSpeeds.speedColors.US === undefined) {
+                WMECSpeeds.speedColors.US = structuredClone(colorsUS);
             }
             if (WMECSpeeds.speedColors.US[selectedState][unit] === undefined) {
                 WMECSpeeds.speedColors.US[selectedState][unit] = structuredClone(WMECSpeeds.speedColors[unit]);
@@ -2074,7 +2080,7 @@ const dashStyles = [
             $("#selectState").css("display", this.checked ? "block" : "none");
             WMECSpeeds.MultiplePalette = this.checked;
             WMECSpeeds.PaletteByCountrie = false;
-            if (WMECSpeeds.MultiplePalette === true) {
+            if (WMECSpeeds.MultiplePalette) {
                 const stateToSelect = CSTopState?.name.replace(/ /g, "_");
                 $("#selectState").val(stateToSelect);
             }
@@ -2085,7 +2091,7 @@ const dashStyles = [
             setupHandlers();
             SCColor();
         });
-        $("#selectState").off().on("click", () => {
+        $("#selectState").off().on("change", () => {
             $("#CStable").html("");
             $("#CSroadType").html("");
             setupPanel();
@@ -2098,9 +2104,9 @@ const dashStyles = [
             $("#Conf_Color").css("display", "none");
             $("#colorspeedsDiv").css("display", "none");
             $("#newspeed").val("");
-            $("#ConfColor").css("background-color", WMECSpeeds.speedColors.Others);
+            $("#ConfColor").css("background-color", WMECSpeeds.speedColors?.Others ?? "#f00");
             $("#newspeedColorDialog").css("display", "block");
-            const rgb = color2Rgb(WMECSpeeds.speedColors.Others);
+            const rgb = color2Rgb(WMECSpeeds.speedColors?.Others ?? "#f00");
             actualiseColorRGB(rgb);
         });
         $("#cancel").on("click", () => {
@@ -2593,7 +2599,7 @@ const dashStyles = [
                 //Color for reverse speed
                 let newWidth, newColor, newDashes = "", newOpacity;
                 if (!WMECSpeeds.MultiplePalette && !WMECSpeeds.PaletteByCountrie) {
-                    if (WMECSpeeds.speedColors !== undefined && WMECSpeeds.speedColors[unit] !== undefined && ("revspeed" in WMECSpeeds.speedColors[unit]))
+                    if (WMECSpeeds.speedColors !== undefined && WMECSpeeds.speedColors[unit] !== undefined && (revspeed in WMECSpeeds.speedColors[unit]))
                         newColor = WMECSpeeds.speedColors[unit][revspeed];
                 }
                 else if (WMECSpeeds.PaletteByCountrie) {
