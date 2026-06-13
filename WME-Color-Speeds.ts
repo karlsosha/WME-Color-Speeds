@@ -2,7 +2,7 @@
 // ==UserScript==
 // @name             WME Color Speeds
 // @name:fr          WME Color Speeds
-// @version          2025.08.14.001
+// @version          2026.06.09.001
 // @description      Adds colors to road segments to show their speed
 // @description:fr   Colorisation des segments selon leurs vitesses.
 // @include          https://www.waze.com/editor*
@@ -42,7 +42,7 @@ unsafeWindow.SDK_INITIALIZED.then(() => {
     });
 
     console.log(`SDK v ${sdk.getSDKVersion()} on ${sdk.getWMEVersion()} initialized`);
-    Promise.all([sdk.Events.once({ eventName: "wme-ready" })]).then(colorSpeeds);
+    sdk.Events.once({ eventName: "wme-ready" }).then(colorSpeeds);
 });
 
 function colorSpeeds() {
@@ -83,8 +83,8 @@ function colorSpeeds() {
 
     const scriptName = GM_info.script.name;
     const currentVersion = GM_info.script.version;
-    const changelogFrench = "UPDATED: Rollback code";
-    const changelogEnglish = "UPDATED: Rollback code";
+    const changelogFrench = "UPDATED: Converted Script to SDK.<br><br>TODO: ";
+    const changelogEnglish = "UPDATED: Converted Script to SDK.<br><br>TODO: ";
     const greasyForkUrl = GM_info.script.namespace;
     const downloadUrl = "https://greasyfork.org/scripts/14044-wme-color-speeds/code/wme-color-speeds.user.js";
     const forumUrl = "https://www.waze.com/discuss/t/script-wme-color-speeds-v1-2-6/179401";
@@ -719,10 +719,10 @@ const dashStyles = [
                 .split(",")
                 .map((val) => val.trim());
 
-            if (arr.length === 3 && arr.every((val) => !isNaN(val))) {
+            if (arr.length === 3 && arr.every((val) => !Number.isNaN(Number(val)))) {
                 const colorrgbs = getColorArr("rgbs");
                 const colornames = getColorArr("names");
-                const matchIndex = colorrgbs.findIndex((color) => JSON.stringify(arr) === JSON.stringify(color));
+                const matchIndex = colorrgbs?.findIndex((color) => JSON.stringify(arr) === JSON.stringify(color));
 
                 if (matchIndex !== -1) {
                     return {
@@ -737,7 +737,7 @@ const dashStyles = [
             }
         } else {
             let colornames = getColorArr("names");
-            const matchIndex = colornames.findIndex((name) => c === name.toLowerCase());
+            const matchIndex = colornames?.findIndex((name) => c === name.toLowerCase());
 
             if (matchIndex !== -1) {
                 const colorrgbs = getColorArr("rgbs");
@@ -775,7 +775,7 @@ const dashStyles = [
     }
 
     type colorArrayTypes = "names" | "hexs" | "rgbs";
-    function getColorArr(x: colorArrayTypes) {
+    function getColorArr(x: colorArrayTypes) : string[] | number[][] | undefined {
         if (x === "names") {
             return [
                 "AliceBlue",
@@ -1301,12 +1301,6 @@ const dashStyles = [
     function bootstrap() {
         loadStartTime = performance.now();
 
-        if (!WazeWrap.Ready) {
-            setTimeout(() => {
-                bootstrap();
-            }, 100);
-            return;
-        }
         init();
     }
 
@@ -1417,13 +1411,14 @@ const dashStyles = [
         });
 
         // reload after changing WME units
-        W.prefs.on("change:isImperial", () => {
-            destroyTab();
-            eventUnRegister();
-            checkUnit();
-            createToggler();
-            createCSS();
-        });
+
+        // W.prefs.on("change:isImperial", () => {
+        //     destroyTab();
+        //     eventUnRegister();
+        //     checkUnit();
+        //     createToggler();
+        //     createCSS();
+        // });
 
         // log('colorspeeds_mapLayer ',colorspeeds_mapLayer);
 
@@ -1717,7 +1712,7 @@ const dashStyles = [
         // $(tabPane).parent().css({ width: 'auto', padding: '4px' });
 
         // await W.userscripts.waitForElementConnected(tabPane);
-        sdk.Sidebar.registerScriptTab().then((r) => {
+        sdk.Sidebar.registerScriptTab().then((r: RegisterSidebarTabResult) => {
             r.tabLabel.innerHTML = labelText;
             r.tabPane.innerHTML = $tabPane.html;
 
@@ -1817,6 +1812,10 @@ const dashStyles = [
             eventName: "wme-map-data-loaded",
             eventHandler: SCColor,
         });
+        sdk.Events.on({
+            eventName: "wme-user-settings-changed",
+            eventHandler: userSettingsChanged,
+        });
         unsafeWindow.addEventListener("beforeunload", saveOption, false);
     }
 
@@ -1850,6 +1849,10 @@ const dashStyles = [
         sdk.Events.off({
             eventName: "wme-map-data-loaded",
             eventHandler: SCColor,
+        });
+        sdk.Events.off({
+            eventName: "wme-user-settings-changed",
+            eventHandler: userSettingsChanged,
         });
         unsafeWindow.removeEventListener("beforeunload", saveOption, false);
     }
@@ -2563,6 +2566,13 @@ const dashStyles = [
             points.push([newpos.lon, newpos.lat]);
         }
         return points;
+    }
+
+    function userSettingsChanged() {
+        destroyTab();
+        eventUnRegister();
+        checkUnit();
+        createCSS();
     }
 
     function SCColor() {

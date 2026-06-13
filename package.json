@@ -1,11 +1,11 @@
 {
 	"name": "wme-color-speeds",
 	"devDependencies": {
-		"@biomejs/biome": "2.1.4",
+		"@biomejs/biome": "2.4.16",
 		"@turf/turf": "^7.2.0",
-		"@types/jquery": "^3.5.32",
+		"@types/jquery": "^4.0.1",
 		"@types/tampermonkey": "^5.0.4",
-		"typescript": "^5.9.2",
+		"typescript": "^6.0.3",
 		"wme-sdk-typings": "https://web-assets.waze.com/wme_sdk_docs/beta/latest/wme-sdk-typings.tgz"
 	},
 	"version": "1.0.0",
@@ -22,7 +22,7 @@
 	},
 	"private": true,
 	"dependencies": {
-		"jquery": "^3.7.1",
+		"jquery": "^4.0.0",
 		"prettier": "^3.5.1"
 	}
 }
